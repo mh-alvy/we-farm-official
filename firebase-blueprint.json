@@ -1,0 +1,352 @@
+{
+  "entities": {
+    "cows": {
+      "title": "Cow",
+      "description": "Livestock details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Dairy", "Fattening", "Heifer"] },
+        "father": { "type": "string" },
+        "mother": { "type": "string" },
+        "age": { "type": "string" },
+        "teethCount": { "type": "number" },
+        "color": { "type": "string" },
+        "purchaseStatus": { "type": "string", "enum": ["Purchased", "Self Breed"] },
+        "date": { "type": "string", "format": "date" },
+        "purchasePrice": { "type": "number" },
+        "initialWeight": { "type": "number" },
+        "healthStatus": { "type": "string", "enum": ["Fit", "Unfit"] },
+        "healthDescription": { "type": "string" },
+        "healthFileUrl": { "type": "string" },
+        "dailyFoodConsumption": { "type": "number" },
+        "milkingStatus": { "type": "string", "enum": ["Milking Period", "Dry Period"] },
+        "dailyMilkSupply": { "type": "number" },
+        "pregnancy": { "type": "string", "enum": ["Pregnant", "With Baby", "Without Baby"] },
+        "lactationCount": { "type": "number" },
+        "breed": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "tagId": { "type": "string" }
+      },
+      "required": ["name", "category", "purchaseStatus", "date", "healthStatus"]
+    },
+    "expenses": {
+      "title": "Expense",
+      "description": "Daily farm expenses",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["date", "category", "amount"]
+    },
+    "incomes": {
+      "title": "Income",
+      "description": "Daily farm income",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["date", "category", "amount"]
+    },
+    "products": {
+      "title": "Product",
+      "description": "Farm products for sale",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["name", "price", "stock"]
+    },
+    "orders": {
+      "title": "Order",
+      "description": "Customer orders",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "productId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "shipped", "delivered"] },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["customerName", "productId", "quantity", "totalPrice"]
+    },
+    "investments": {
+      "title": "Investment",
+      "description": "Investor contributions",
+      "type": "object",
+      "properties": {
+        "investorName": { "type": "string" },
+        "investorEmail": { "type": "string" },
+        "projectId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["investorName", "projectId", "amount"]
+    },
+    "projects": {
+      "title": "Project",
+      "description": "Farm projects for investment",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["title", "targetAmount"]
+    },
+    "settings": {
+      "title": "Site Settings",
+      "description": "Global site configuration",
+      "type": "object",
+      "properties": {
+        "hero": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "images": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "featuresSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "iconName": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "aboutSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" },
+            "imageUrl": { "type": "string" },
+            "primaryButtonText": { "type": "string" },
+            "secondaryButtonText": { "type": "string" }
+          }
+        },
+        "statsSection": {
+          "type": "object",
+          "properties": {
+            "stats": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "string" },
+                  "label": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "aboutUsSection": {
+          "type": "object",
+          "properties": {
+            "promise": {
+              "type": "object",
+              "properties": {
+                "tagline": { "type": "string" },
+                "headline": { "type": "string" },
+                "description": { "type": "string" },
+                "imageUrl": { "type": "string" }
+              }
+            },
+            "vision": {
+              "type": "object",
+              "properties": {
+                "headline": { "type": "string" },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        },
+        "productsSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "investSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "contactSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" },
+            "info": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "text": { "type": "string" }
+                  }
+                },
+                "whatsapp": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "text": { "type": "string" }
+                  }
+                },
+                "email": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "text": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "faqSection": {
+          "type": "object",
+          "properties": {
+            "headline": { "type": "string" },
+            "description": { "type": "string" },
+            "faqs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": { "type": "string" },
+                  "answer": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "users": {
+      "title": "User",
+      "description": "User profiles",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "investor"] },
+        "createdAt": { "type": "string" },
+        "investorProfile": {
+          "type": "object",
+          "properties": {
+            "dob": { "type": "string" },
+            "fatherName": { "type": "string" },
+            "motherName": { "type": "string" },
+            "gender": { "type": "string" },
+            "nidPassport": { "type": "string" },
+            "emergencyPhone": { "type": "string" },
+            "permanentAddress": { "type": "string" },
+            "currentAddress": { "type": "string" },
+            "occupation": { "type": "string" },
+            "organization": { "type": "string" },
+            "designation": { "type": "string" },
+            "bankName": { "type": "string" },
+            "branchName": { "type": "string" },
+            "accountName": { "type": "string" },
+            "accountNumber": { "type": "string" },
+            "routingNumber": { "type": "string" },
+            "nomineeName": { "type": "string" },
+            "nomineeRelation": { "type": "string" },
+            "nomineePhone": { "type": "string" },
+            "nomineeNid": { "type": "string" },
+            "nomineeNidFileUrl": { "type": "string" },
+            "nidFileUrl": { "type": "string" }
+          }
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "milkLogs": {
+      "title": "Milk Log",
+      "description": "Daily milking or consumption records",
+      "type": "object",
+      "properties": {
+        "cowId": { "type": "string" },
+        "cowName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "amount": { "type": "number" },
+        "unit": { "type": "string", "enum": ["Kg", "L"] },
+        "type": { "type": "string", "enum": ["Milking", "Consumption"] }
+      },
+      "required": ["cowId", "date", "amount", "unit", "type"]
+    },
+    "weightLogs": {
+      "title": "Weight Log",
+      "description": "Growth records",
+      "type": "object",
+      "properties": {
+        "cowId": { "type": "string" },
+        "cowName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "weight": { "type": "number" }
+      },
+      "required": ["cowId", "date", "weight"]
+    },
+    "vaccinationLogs": {
+      "title": "Vaccination Log",
+      "description": "Health records",
+      "type": "object",
+      "properties": {
+        "cowId": { "type": "string" },
+        "cowName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "vaccineName": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["cowId", "date", "vaccineName"]
+    }
+  },
+  "firestore": {
+    "/cows/{cowId}": { "schema": "cows", "description": "Cow documents" },
+    "/expenses/{expenseId}": { "schema": "expenses", "description": "Expense documents" },
+    "/incomes/{incomeId}": { "schema": "incomes", "description": "Income documents" },
+    "/products/{productId}": { "schema": "products", "description": "Product documents" },
+    "/orders/{orderId}": { "schema": "orders", "description": "Order documents" },
+    "/investments/{investmentId}": { "schema": "investments", "description": "Investment documents" },
+    "/projects/{projectId}": { "schema": "projects", "description": "Project documents" },
+    "/users/{userId}": { "schema": "users", "description": "User documents" },
+    "/settings/{settingId}": { "schema": "settings", "description": "Site configuration" },
+    "/milkLogs/{logId}": { "schema": "milkLogs", "description": "Milk records" },
+    "/weightLogs/{weightId}": { "schema": "weightLogs", "description": "Weight records" },
+    "/vaccinationLogs/{vaccId}": { "schema": "vaccinationLogs", "description": "Vaccination records" }
+  }
+}

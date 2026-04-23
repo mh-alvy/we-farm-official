@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Global Deny
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "alvymahamudulhasan@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidCow(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.category in ['Dairy', 'Fattening', 'Heifer'];
+    }
+
+    // ===============================================================
+    // Routes
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId) &&
+        request.resource.data.keys().hasAll(['email', 'role']) &&
+        request.resource.data.role in ['admin', 'investor'] &&
+        (request.resource.data.role == 'investor' || isAdmin());
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+    }
+
+    match /cows/{cowId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /deletedCows/{cowId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /milkLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /weightLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /vaccinationLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /incomes/{incomeId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.customerEmail);
+      allow create: if true; // Support guests
+      allow update, delete: if isAdmin();
+    }
+
+    match /investments/{investmentId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.investorEmail);
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
