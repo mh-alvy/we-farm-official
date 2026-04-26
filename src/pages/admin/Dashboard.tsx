@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getCountFromServer, getAggregateFromServer, sum, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Cow, Expense, Income, Order, Investment } from '../../types';
 import { 
@@ -26,34 +26,50 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [cows, expenses, incomes, orders, investments, milkLogs] = await Promise.all([
-        getDocs(collection(db, 'cows')),
-        getDocs(collection(db, 'expenses')),
-        getDocs(collection(db, 'incomes')),
-        getDocs(collection(db, 'orders')),
-        getDocs(collection(db, 'investments')),
-        getDocs(collection(db, 'milkLogs'))
-      ]);
+      try {
+        const startOfCurrentMonth = startOfMonth(new Date());
+        const startOfCurrentMonthStr = startOfCurrentMonth.toISOString().split('T')[0];
 
-      const totalRev = incomes.docs.reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0);
-      const totalExp = expenses.docs.reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0);
-      const totalInv = investments.docs.reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0);
-      
-      const startOfCurrentMonth = startOfMonth(new Date());
-      const monthlyMilk = milkLogs.docs.reduce((sum, doc) => {
-        const logDate = new Date(doc.data().date);
-        return isAfter(logDate, startOfCurrentMonth) ? sum + (Number(doc.data().amount) || 0) : sum;
-      }, 0);
+        const [
+          cowsCount,
+          ordersCount,
+          revenueAgg,
+          expensesAgg,
+          investmentsAgg,
+          milkAgg
+        ] = await Promise.all([
+          getCountFromServer(collection(db, 'cows')),
+          getCountFromServer(collection(db, 'orders')),
+          getAggregateFromServer(collection(db, 'incomes'), {
+            totalRev: sum('amount')
+          }),
+          getAggregateFromServer(collection(db, 'expenses'), {
+            totalExp: sum('amount')
+          }),
+          getAggregateFromServer(collection(db, 'investments'), {
+            totalInv: sum('amount')
+          }),
+          getAggregateFromServer(
+            query(collection(db, 'milkLogs'), where('date', '>=', startOfCurrentMonthStr)), 
+            {
+              totalMilk: sum('amount')
+            }
+          )
+        ]);
 
-      setStats({
-        totalCows: cows.size,
-        totalRevenue: totalRev,
-        totalExpenses: totalExp,
-        totalOrders: orders.size,
-        totalInvestments: totalInv,
-        monthlyMilk
-      });
-      setLoading(false);
+        setStats({
+          totalCows: cowsCount.data().count,
+          totalRevenue: revenueAgg.data().totalRev || 0,
+          totalExpenses: expensesAgg.data().totalExp || 0,
+          totalOrders: ordersCount.data().count,
+          totalInvestments: investmentsAgg.data().totalInv || 0,
+          monthlyMilk: milkAgg.data().totalMilk || 0
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchStats();
   }, []);
@@ -79,9 +95,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-        <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+        <div className="text-[10px] sm:text-sm text-gray-500 italic">Last updated: {new Date().toLocaleDateString()}</div>
       </div>
 
       {/* Stats Grid */}

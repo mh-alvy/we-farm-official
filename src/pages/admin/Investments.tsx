@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc, where, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Investment, UserProfile } from '../../types';
 import { TrendingUp, User, Mail, Calendar, DollarSign, Target, FileSearch, X, Phone, MapPin, Landmark, Briefcase, Droplets, FileType } from 'lucide-react';
@@ -29,13 +29,13 @@ export default function AdminInvestments() {
     setInvestorLoading(true);
     setIsModalOpen(true);
     try {
-      // Find user by email in users collection
+      // Find user by email in users collection using a targeted query
       const usersRef = collection(db, 'users');
-      const q = query(usersRef);
+      const q = query(usersRef, where('email', '==', email), limit(1));
       const snapshot = await getDocs(q);
-      const userDoc = snapshot.docs.find(d => d.data().email === email);
       
-      if (userDoc) {
+      if (!snapshot.empty) {
+        const userDoc = snapshot.docs[0];
         setSelectedInvestor({ uid: userDoc.id, ...userDoc.data() } as UserProfile);
       } else {
         setSelectedInvestor(null);

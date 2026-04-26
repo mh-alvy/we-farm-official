@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Expense, Income } from '../../types';
 import { Plus, Download, Trash2, Wallet, TrendingUp, TrendingDown, Calendar, DollarSign, Tag } from 'lucide-react';
@@ -27,8 +27,8 @@ export default function AdminFinances() {
   const fetchData = async () => {
     setLoading(true);
     const [expSnap, incSnap] = await Promise.all([
-      getDocs(query(collection(db, 'expenses'), orderBy('date', 'desc'))),
-      getDocs(query(collection(db, 'incomes'), orderBy('date', 'desc')))
+      getDocs(query(collection(db, 'expenses'), orderBy('date', 'desc'), limit(100))),
+      getDocs(query(collection(db, 'incomes'), orderBy('date', 'desc'), limit(100)))
     ]);
     setExpenses(expSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Expense)));
     setIncomes(incSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Income)));
@@ -73,17 +73,17 @@ export default function AdminFinances() {
           <h1 className="text-2xl font-bold text-gray-900">Financial Management</h1>
           <p className="text-gray-500 text-sm">Track daily income and expenses.</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={() => exportToCSV([...incomes, ...expenses], 'financial_report.csv')}
-            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap"
           >
             <Download className="h-4 w-4" />
             <span>Export Report</span>
           </button>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 rounded-xl text-sm font-medium text-white hover:bg-green-700 transition-colors shadow-sm"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-green-600 rounded-xl text-xs sm:text-sm font-medium text-white hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
           >
             <Plus className="h-4 w-4" />
             <span>Add Transaction</span>

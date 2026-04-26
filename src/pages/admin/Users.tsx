@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, limit } from 'firebase/firestore';
 import { User, Mail, Phone, Calendar, Download, Search, UserCheck, Shield, ChevronRight, Printer, FileText, UserPlus, ShieldAlert, CheckCircle2, FileType, ExternalLink } from 'lucide-react';
 import { UserProfile } from '../../types';
 
@@ -13,7 +13,8 @@ export default function AdminUsers() {
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    // Limit to 100 recent users to avoid slow loading with large datasets
+    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
       setUsers(usersData);

@@ -489,28 +489,28 @@ export default function AdminCows() {
           <h1 className="text-2xl font-bold text-gray-900">Livestock Management</h1>
           <p className="text-gray-500 text-sm">Manage and track your cattle database.</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={() => setIsBinOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap"
           >
             <RotateCcw className="h-4 w-4" />
-            <span>Recycle Bin ({deletedCows.length})</span>
+            <span className="hidden xs:inline">Recycle Bin</span> ({deletedCows.length})
           </button>
           <button 
             onClick={() => exportToCSV(cows, 'livestock_data.csv')}
-            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
           >
             <Download className="h-4 w-4" />
-            <span>Export CSV</span>
+            <span className="hidden xs:inline">Export CSV</span>
           </button>
           <button 
             onClick={handleBulkMigrateIds}
             title="Update all existing IDs to the new WF format"
-            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
           >
             <RotateCcw className="h-4 w-4" />
-            <span>Migrate IDs</span>
+            <span className="hidden xs:inline">Migrate IDs</span>
           </button>
           <button 
             onClick={() => {
@@ -518,7 +518,7 @@ export default function AdminCows() {
               resetForm();
               setIsModalOpen(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 rounded-xl text-sm font-medium text-white hover:bg-green-700 transition-colors shadow-sm"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-green-600 rounded-xl text-xs sm:text-sm font-medium text-white hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap"
           >
             <Plus className="h-4 w-4" />
             <span>Add New Cow</span>

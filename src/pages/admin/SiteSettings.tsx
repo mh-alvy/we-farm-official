@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Save, Image as ImageIcon, Plus, X, Layout, Type, Info, CheckCircle2, ShieldAlert } from 'lucide-react';
@@ -120,6 +120,7 @@ export default function AdminSiteSettings() {
   const [saving, setSaving] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -326,13 +327,17 @@ export default function AdminSiteSettings() {
                     </div>
                   </div>
                 ))}
-                <div className="aspect-video rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center bg-gray-50/50">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Add More Above</p>
-                </div>
+                <button 
+                  onClick={() => imageInputRef.current?.focus()}
+                  className="aspect-video rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center bg-gray-50/50 hover:bg-gray-100 hover:border-green-200 transition-all group"
+                >
+                  <p className="text-[10px] text-gray-400 font-bold uppercase group-hover:text-green-600 transition-colors">Add Image Below</p>
+                </button>
               </div>
 
               <div className="flex gap-2">
                 <input
+                  ref={imageInputRef}
                   type="text"
                   placeholder="Paste direct image URL here..."
                   value={newImageUrl}

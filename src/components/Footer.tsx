@@ -1,4 +1,4 @@
-import { Leaf, Facebook, Twitter, Instagram, Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
+import { Leaf, Facebook, Twitter, Instagram, Mail, Phone, MapPin, MessageCircle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FARM_NAME, FARM_TAGLINE, FARM_LOCATION, FARM_WHATSAPP, FARM_EMAIL } from '../constants';
 
@@ -86,7 +86,7 @@ export default function Footer() {
           </div>
 
           {/* Contact Info */}
-          <div>
+          <div className="space-y-4">
             <h3 className="text-white font-semibold mb-4">Contact Us</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start space-x-3">
@@ -104,20 +104,30 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Newsletter */}
+          {/* Location Map */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Newsletter</h3>
-            <p className="text-sm mb-4">Subscribe to get the latest updates on farm projects.</p>
-            <form className="flex space-x-2">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="bg-gray-800 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-green-500 w-full"
+            <h3 className="text-white font-semibold mb-4">Our Location</h3>
+            <div className="rounded-xl overflow-hidden border border-gray-800 h-48 w-full transition-all duration-500 ring-1 ring-gray-800 hover:ring-green-500/50">
+              <iframe 
+                src={`https://maps.google.com/maps?q=G5QQ%2BQH%2C%20Ragurampur%2C%20Cumilla&t=&z=16&ie=UTF8&iwloc=&output=embed`}
+                width="100%" 
+                height="100%" 
+                style={{ border: 0 }} 
+                allowFullScreen={true} 
+                loading="lazy" 
+                referrerPolicy="no-referrer-when-downgrade"
+                title="We Farm Location"
               />
-              <button className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                Join
-              </button>
-            </form>
+            </div>
+            <a 
+              href="https://maps.app.goo.gl/AhtTqC9n4e2uAa9u8?g_st=ic" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-green-500 hover:text-green-400 transition-colors flex items-center mt-3 font-medium"
+            >
+              <ExternalLink className="h-3 w-3 mr-1.5" />
+              Open in Google Maps
+            </a>
           </div>
         </div>
         <div className="border-t border-gray-800 mt-12 pt-8 text-center text-xs">

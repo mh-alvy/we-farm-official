@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Order } from '../../types';
 import { ShoppingCart, User, Mail, Calendar, Package, CheckCircle, Truck, Clock } from 'lucide-react';
@@ -15,7 +15,7 @@ export default function AdminOrders() {
 
   const fetchOrders = async () => {
     setLoading(true);
-    const q = query(collection(db, 'orders'), orderBy('date', 'desc'));
+    const q = query(collection(db, 'orders'), orderBy('date', 'desc'), limit(100));
     const querySnapshot = await getDocs(q);
     setOrders(querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order)));
     setLoading(false);

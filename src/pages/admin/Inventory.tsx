@@ -62,10 +62,10 @@ export default function AdminInventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
-          <p className="text-gray-500 text-sm">Manage products and stock levels.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory Management</h1>
+          <p className="text-gray-500 text-xs sm:text-sm">Manage products and stock levels.</p>
         </div>
         <button 
           onClick={() => {
@@ -73,7 +73,7 @@ export default function AdminInventory() {
             setFormData({ name: '', price: 0, unit: 'Kg', stock: 0, description: '', imageUrl: '' });
             setIsModalOpen(true);
           }}
-          className="flex items-center space-x-2 px-4 py-2 bg-green-600 rounded-xl text-sm font-medium text-white hover:bg-green-700 transition-colors shadow-sm"
+          className="flex items-center justify-center space-x-2 px-6 py-2.5 bg-green-600 rounded-xl text-sm font-bold text-white hover:bg-green-700 transition-all shadow-md shadow-green-100"
         >
           <Plus className="h-4 w-4" />
           <span>Add Product</span>
