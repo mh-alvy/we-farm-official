@@ -109,6 +109,8 @@ export interface Project {
   minInvestment: number;
   status: 'Active' | 'Inactive';
   imageUrl: string;
+  policyContent?: string;
+  policyUrl?: string;
 }
 
 export interface Investment {

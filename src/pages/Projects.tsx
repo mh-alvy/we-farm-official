@@ -3,7 +3,7 @@ import { collection, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Project, Investment, SiteSettings } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, Calendar, X, CheckCircle2, Leaf, Target } from 'lucide-react';
+import { TrendingUp, Calendar, X, CheckCircle2, Leaf, Target, FileText, Download, ShieldCheck, Info, ExternalLink } from 'lucide-react';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import { FARM_NAME } from '../constants';
 
@@ -11,6 +11,7 @@ export default function Projects() {
   const [projects, setProducts] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [viewingProject, setViewingProject] = useState<Project | null>(null);
   const [investmentAmount, setInvestmentAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -116,10 +117,17 @@ export default function Projects() {
                 </div>
               </div>
             <div className="p-8 flex-grow flex flex-col">
-              <h3 className="text-xl font-bold text-[#1A2E26] mb-3">{project.title}</h3>
-              <p className="text-gray-500 text-sm mb-6 leading-relaxed line-clamp-3">
+              <h3 className="text-xl font-bold text-[#1A2E26] mb-2">{project.title}</h3>
+              <p className="text-gray-500 text-sm mb-3 leading-relaxed line-clamp-3">
                 {project.description}
               </p>
+              <button
+                onClick={() => setViewingProject(project)}
+                className="text-green-700 hover:text-green-800 text-xs font-bold uppercase tracking-wider mb-5 flex items-center transition-colors cursor-pointer text-left"
+              >
+                <Info className="h-4 w-4 mr-1.5" />
+                <span>Read More / View Details</span>
+              </button>
               
               <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-100">
                 <div className="flex items-center justify-between">
@@ -229,6 +237,142 @@ export default function Projects() {
                   </form>
                 </>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* View Details / Policy Modal */}
+      <AnimatePresence>
+        {viewingProject && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingProject(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+            >
+              {/* Image banner */}
+              <div className="h-64 overflow-hidden relative flex-shrink-0">
+                <img
+                  src={viewingProject.imageUrl}
+                  alt={viewingProject.title}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                
+                <button 
+                  onClick={() => setViewingProject(null)}
+                  className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-colors text-white"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+                
+                <div className="absolute bottom-6 left-8 right-8">
+                  <div className={cn(
+                    "inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase mb-3 backdrop-blur-md shadow-sm",
+                    viewingProject.status === 'Active' ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
+                  )}>
+                    <div className={cn("h-1.5 w-1.5 rounded-full", viewingProject.status === 'Active' ? "bg-white animate-pulse" : "bg-gray-300")} />
+                    <span>{viewingProject.status === 'Active' ? 'Active/Running' : 'Inactive/Not Running'}</span>
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-sm">{viewingProject.title}</h2>
+                </div>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-8 overflow-y-auto space-y-8 flex-grow">
+                {/* Statistics panel */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Minimum Investment</span>
+                    <span className="text-lg sm:text-xl font-bold text-green-700">{formatCurrency(viewingProject.minInvestment || 1000)}</span>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Target Funding Amount</span>
+                    <span className="text-lg sm:text-xl font-bold text-[#1A2E26]">{formatCurrency(viewingProject.targetAmount)}</span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center">
+                    <Info className="h-4 w-4 mr-2 text-green-700" />
+                    Project Description
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line bg-[#F9FBFA] p-6 rounded-2xl border border-green-50/50">
+                    {viewingProject.description}
+                  </p>
+                </div>
+
+                {/* Investment Policy section */}
+                <div className="border-t border-gray-100 pt-8">
+                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center">
+                    <ShieldCheck className="h-4 w-4 mr-2 text-green-700" />
+                    Investment Policy & Terms
+                  </h3>
+                  
+                  {viewingProject.policyContent ? (
+                    <div className="bg-[#F4F9F6] border border-green-100 rounded-2xl p-6 text-sm text-green-950 space-y-4">
+                      <p className="whitespace-pre-line leading-relaxed">
+                        {viewingProject.policyContent}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-sm text-gray-500 italic">
+                      Standard {FARM_NAME} investment guidelines apply to this project. Please contact our support team or refer to the attached document for full terms.
+                    </div>
+                  )}
+
+                  {viewingProject.policyUrl && (
+                    <div className="mt-4 flex justify-end">
+                      <a
+                        href={viewingProject.policyUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center space-x-2 px-5 py-3 bg-white hover:bg-green-50 border border-green-200 rounded-xl text-xs font-bold text-green-700 transition-all shadow-sm"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>View/Download Full Policy Document</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Footer */}
+              <div className="p-6 border-t border-gray-100 bg-gray-50 flex-shrink-0 flex items-center justify-between gap-4">
+                <button
+                  onClick={() => setViewingProject(null)}
+                  className="px-6 py-4 border border-gray-200 hover:bg-gray-100 rounded-2xl text-sm font-bold text-gray-500 transition-all cursor-pointer"
+                >
+                  Close Window
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedProject(viewingProject);
+                    setViewingProject(null);
+                  }}
+                  disabled={viewingProject.status !== 'Active'}
+                  className={cn(
+                    "flex-1 font-bold py-4 rounded-2xl transition-all shadow-lg text-center cursor-pointer",
+                    viewingProject.status === 'Active' 
+                      ? "bg-[#1A2E26] hover:bg-[#2A3E36] text-white shadow-green-100" 
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed shadow-none"
+                  )}
+                >
+                  {viewingProject.status === 'Active' ? 'Invest in this Project' : 'Currently Closed'}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

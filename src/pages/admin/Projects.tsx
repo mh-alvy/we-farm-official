@@ -18,7 +18,9 @@ export default function AdminProjects() {
     currentAmount: 0,
     minInvestment: 1000,
     status: 'Active',
-    imageUrl: ''
+    imageUrl: '',
+    policyContent: '',
+    policyUrl: ''
   });
 
   useEffect(() => {
@@ -55,7 +57,9 @@ export default function AdminProjects() {
         currentAmount: 0,
         minInvestment: 1000,
         status: 'Active',
-        imageUrl: ''
+        imageUrl: '',
+        policyContent: '',
+        policyUrl: ''
       });
       fetchProjects();
     } catch (err) {
@@ -76,7 +80,11 @@ export default function AdminProjects() {
 
   const handleEdit = (project: Project) => {
     setEditingProject(project);
-    setFormData(project);
+    setFormData({
+      ...project,
+      policyContent: project.policyContent || '',
+      policyUrl: project.policyUrl || ''
+    });
     setIsModalOpen(true);
   };
 
@@ -97,7 +105,9 @@ export default function AdminProjects() {
               currentAmount: 0,
               minInvestment: 1000,
               status: 'Active',
-              imageUrl: ''
+              imageUrl: '',
+              policyContent: '',
+              policyUrl: ''
             });
             setIsModalOpen(true);
           }}
@@ -263,6 +273,28 @@ export default function AdminProjects() {
                         onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-green-500 transition-all"
                         placeholder="https://images.unsplash.com/..."
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase">Investment Policy Details (Terms, returns, cycles etc)</label>
+                    <textarea
+                      value={formData.policyContent}
+                      onChange={(e) => setFormData({...formData, policyContent: e.target.value})}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-green-500 transition-all h-24 resize-none"
+                      placeholder="e.g. 1. Expected annual return is 15-18%. 2. Capital is locked for 12 months..."
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase">Attach/Add Policy Document Link (URL)</label>
+                    <div className="relative">
+                      <FileText className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="url"
+                        value={formData.policyUrl}
+                        onChange={(e) => setFormData({...formData, policyUrl: e.target.value})}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-green-500 transition-all"
+                        placeholder="https://example.com/investment_policy.pdf"
                       />
                     </div>
                   </div>
