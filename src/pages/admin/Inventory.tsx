@@ -5,6 +5,7 @@ import { Product } from '../../types';
 import { Plus, Trash2, Edit2, Package, DollarSign, Layers, Image as ImageIcon, X } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import ImageUploader from '../../components/ImageUploader';
 
 export default function AdminInventory() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -168,9 +169,25 @@ export default function AdminInventory() {
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-green-500" 
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase">Image URL</label>
-                  <input type="text" required value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-green-500" placeholder="https://..." />
+                <div className="space-y-3">
+                  <ImageUploader 
+                    label="Upload Product Image" 
+                    currentImageUrl={formData.imageUrl} 
+                    onUploadSuccess={(url) => setFormData({...formData, imageUrl: url})} 
+                    onClear={() => setFormData({...formData, imageUrl: ''})}
+                    folder="inventory"
+                  />
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or Paste Direct Image URL</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={formData.imageUrl} 
+                      onChange={e => setFormData({...formData, imageUrl: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2 px-4 outline-none focus:ring-2 focus:ring-green-500 text-xs" 
+                      placeholder="https://..." 
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase">Description</label>

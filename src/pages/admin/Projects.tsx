@@ -5,6 +5,7 @@ import { Project } from '../../types';
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, Target, DollarSign, FileText } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import ImageUploader from '../../components/ImageUploader';
 
 export default function AdminProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -262,18 +263,28 @@ export default function AdminProjects() {
                       <option value="Inactive">Inactive/Not Running</option>
                     </select>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase">Image URL</label>
-                    <div className="relative">
-                      <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="url"
-                        required
-                        value={formData.imageUrl}
-                        onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-green-500 transition-all"
-                        placeholder="https://images.unsplash.com/..."
-                      />
+                  <div className="space-y-4 md:col-span-2">
+                    <ImageUploader 
+                      label="Upload Project Cover Image" 
+                      currentImageUrl={formData.imageUrl} 
+                      onUploadSuccess={(url) => setFormData({...formData, imageUrl: url})} 
+                      onClear={() => setFormData({...formData, imageUrl: ''})}
+                      folder="projects"
+                    />
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or Paste Direct Image URL</label>
+                      <div className="relative">
+                        <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                          type="url"
+                          required
+                          value={formData.imageUrl}
+                          onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
+                          className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm"
+                          placeholder="https://images.unsplash.com/..."
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2 md:col-span-2">

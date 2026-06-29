@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Save, Image as ImageIcon, Plus, X, Layout, Type, Info, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { SiteSettings } from '../../types';
 import { motion } from 'motion/react';
+import ImageUploader from '../../components/ImageUploader';
 
 const DEFAULT_SETTINGS: SiteSettings = {
   hero: {
@@ -335,23 +336,41 @@ export default function AdminSiteSettings() {
                 </button>
               </div>
 
-              <div className="flex gap-2">
-                <input
-                  ref={imageInputRef}
-                  type="text"
-                  placeholder="Paste direct image URL here..."
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addImage()}
-                  className="flex-1 px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs"
-                />
-                <button
-                  onClick={addImage}
-                  className="bg-green-100 hover:bg-green-200 text-green-700 px-6 rounded-xl transition-all flex items-center space-x-2 font-bold text-xs"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Add Image</span>
-                </button>
+              <div className="space-y-4">
+                <div className="max-w-md">
+                  <ImageUploader 
+                    label="Upload Image to Gallery" 
+                    onUploadSuccess={(url) => {
+                      setSettings({
+                        ...settings,
+                        hero: {
+                          ...settings.hero,
+                          images: [...settings.hero.images, url]
+                        }
+                      });
+                    }}
+                    folder="gallery"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <input
+                    ref={imageInputRef}
+                    type="text"
+                    placeholder="Or paste direct image URL here..."
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addImage()}
+                    className="flex-1 px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs"
+                  />
+                  <button
+                    onClick={addImage}
+                    className="bg-green-100 hover:bg-green-200 text-green-700 px-6 rounded-xl transition-all flex items-center space-x-2 font-bold text-xs"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add Image URL</span>
+                  </button>
+                </div>
               </div>
               <p className="mt-2 text-[10px] text-gray-400">
                 Tip: Add multiple images to enable an automatic sliding gallery on the home page.
@@ -490,17 +509,33 @@ export default function AdminSiteSettings() {
                   className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold"
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Image URL</label>
-                <input
-                  type="text"
-                  value={settings.aboutSection?.imageUrl || ''}
-                  onChange={(e) => setSettings({
+              <div className="space-y-3">
+                <ImageUploader 
+                  label="Upload About Section Image" 
+                  currentImageUrl={settings.aboutSection?.imageUrl || ''} 
+                  onUploadSuccess={(url) => setSettings({
                     ...settings,
-                    aboutSection: { ...(settings.aboutSection || DEFAULT_SETTINGS.aboutSection), imageUrl: e.target.value }
+                    aboutSection: { ...(settings.aboutSection || DEFAULT_SETTINGS.aboutSection), imageUrl: url }
+                  })} 
+                  onClear={() => setSettings({
+                    ...settings,
+                    aboutSection: { ...(settings.aboutSection || DEFAULT_SETTINGS.aboutSection), imageUrl: '' }
                   })}
-                  className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-xs"
+                  folder="about"
                 />
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or Paste Direct Image URL</label>
+                  <input
+                    type="text"
+                    value={settings.aboutSection?.imageUrl || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      aboutSection: { ...(settings.aboutSection || DEFAULT_SETTINGS.aboutSection), imageUrl: e.target.value }
+                    })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-xs"
+                    placeholder="https://..."
+                  />
+                </div>
               </div>
             </div>
 
@@ -654,17 +689,33 @@ export default function AdminSiteSettings() {
                     className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs leading-relaxed"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Image URL</label>
-                  <input
-                    type="text"
-                    value={settings.aboutUsSection?.promise?.imageUrl || ''}
-                    onChange={(e) => setSettings({
+                <div className="space-y-3">
+                  <ImageUploader 
+                    label="Upload Promise Section Image" 
+                    currentImageUrl={settings.aboutUsSection?.promise?.imageUrl || ''} 
+                    onUploadSuccess={(url) => setSettings({
                       ...settings,
-                      aboutUsSection: { ...settings.aboutUsSection, promise: { ...settings.aboutUsSection.promise, imageUrl: e.target.value } }
+                      aboutUsSection: { ...settings.aboutUsSection, promise: { ...settings.aboutUsSection.promise, imageUrl: url } }
+                    })} 
+                    onClear={() => setSettings({
+                      ...settings,
+                      aboutUsSection: { ...settings.aboutUsSection, promise: { ...settings.aboutUsSection.promise, imageUrl: '' } }
                     })}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-[10px]"
+                    folder="promise"
                   />
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or Paste Direct Image URL</label>
+                    <input
+                      type="text"
+                      value={settings.aboutUsSection?.promise?.imageUrl || ''}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        aboutUsSection: { ...settings.aboutUsSection, promise: { ...settings.aboutUsSection.promise, imageUrl: e.target.value } }
+                      })}
+                      className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs"
+                      placeholder="https://..."
+                    />
+                  </div>
                 </div>
               </div>
             </div>
