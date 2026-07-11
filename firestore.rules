@@ -40,10 +40,13 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(userId) &&
-        request.resource.data.keys().hasAll(['email', 'role']) &&
-        request.resource.data.role in ['admin', 'investor'] &&
-        (request.resource.data.role == 'investor' || isAdmin());
+      allow create: if isSignedIn() && (
+        (isOwner(userId) &&
+         request.resource.data.keys().hasAll(['email', 'role']) &&
+         request.resource.data.role in ['admin', 'investor'] &&
+         (request.resource.data.role == 'investor' || isAdmin()))
+        || isAdmin()
+      );
       allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
     }
 
