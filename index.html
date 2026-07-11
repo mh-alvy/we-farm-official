@@ -4,6 +4,115 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>We Farm - Soil to Soul</title>
+    <script>
+      // Super-robust shield against "Cannot set property fetch of #<Window> which has only a getter"
+      (function() {
+        try {
+          var currentFetch = window.fetch;
+
+          // Helper to safely define getter/setter with a backup value
+          var defineOn = function(obj, prop) {
+            try {
+              Object.defineProperty(obj, prop, {
+                get: function() {
+                  return currentFetch;
+                },
+                set: function(val) {
+                  currentFetch = val;
+                },
+                configurable: true,
+                enumerable: true
+              });
+              return true;
+            } catch (e) {
+              return false;
+            }
+          };
+
+          // Define setter on all global fetch targets initially if they are configurable
+          if (currentFetch) {
+            defineOn(window, 'fetch');
+            defineOn(Window.prototype, 'fetch');
+            if (typeof globalThis !== 'undefined') defineOn(globalThis, 'fetch');
+            if (typeof self !== 'undefined') defineOn(self, 'fetch');
+          }
+
+          // Intercept Object.defineProperty to prevent other scripts from making 'fetch' getter-only or non-configurable
+          var originalDefineProperty = Object.defineProperty;
+          Object.defineProperty = function(obj, prop, descriptor) {
+            if ((obj === window || obj === Window.prototype || obj === globalThis || obj === self) && prop === 'fetch') {
+              try {
+                descriptor.configurable = true;
+                if ('value' in descriptor) {
+                  descriptor.writable = true;
+                } else if (descriptor.get && !descriptor.set) {
+                  descriptor.get = function() {
+                    return currentFetch;
+                  };
+                  descriptor.set = function(val) {
+                    currentFetch = val;
+                  };
+                }
+              } catch (e) {
+                console.warn('Error adjusting fetch descriptor:', e);
+              }
+            }
+            return originalDefineProperty.call(Object, obj, prop, descriptor);
+          };
+
+          // Intercept Object.defineProperties
+          var originalDefineProperties = Object.defineProperties;
+          Object.defineProperties = function(obj, props) {
+            if (props && props.fetch) {
+              var descriptor = props.fetch;
+              try {
+                descriptor.configurable = true;
+                if ('value' in descriptor) {
+                  descriptor.writable = true;
+                } else if (descriptor.get && !descriptor.set) {
+                  descriptor.get = function() {
+                    return currentFetch;
+                  };
+                  descriptor.set = function(val) {
+                    currentFetch = val;
+                  };
+                }
+              } catch (e) {
+                console.warn('Error adjusting fetch descriptor in defineProperties:', e);
+              }
+            }
+            return originalDefineProperties.call(Object, obj, props);
+          };
+
+          // Intercept Reflect.defineProperty if available
+          if (typeof Reflect !== 'undefined' && Reflect.defineProperty) {
+            var originalReflectDefineProperty = Reflect.defineProperty;
+            Reflect.defineProperty = function(target, prop, descriptor) {
+              if ((target === window || target === Window.prototype || target === globalThis || target === self) && prop === 'fetch') {
+                try {
+                  descriptor.configurable = true;
+                  if ('value' in descriptor) {
+                    descriptor.writable = true;
+                  } else if (descriptor.get && !descriptor.set) {
+                    descriptor.get = function() {
+                      return currentFetch;
+                    };
+                    descriptor.set = function(val) {
+                      currentFetch = val;
+                    };
+                  }
+                } catch (e) {
+                  console.warn('Error adjusting fetch descriptor in Reflect.defineProperty:', e);
+                }
+              }
+              return originalReflectDefineProperty.call(Reflect, target, prop, descriptor);
+            };
+          }
+        } catch (globalError) {
+          console.warn('Could not apply super-robust fetch polyfill:', globalError);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { Tractor, LogIn, UserPlus, Mail, Lock, Phone, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
@@ -61,17 +61,34 @@ export default function Login() {
         
         await updateProfile(user, { displayName: formData.name });
 
+        // Check if there is an existing pre-created profile under this email
+        const usersRef = collection(db, 'users');
+        const qEmail = query(usersRef, where('email', '==', formData.email));
+        const emailSnapshot = await getDocs(qEmail);
+        
+        let existingData = {};
+        let oldDocId = null;
+        if (!emailSnapshot.empty) {
+          const oldDoc = emailSnapshot.docs[0];
+          existingData = oldDoc.data();
+          oldDocId = oldDoc.id;
+        }
+
         // Create new user profile in Firestore
-        // New users are always 'investor' (normal user) by default.
         const role = user.email === 'alvymahamudulhasan@gmail.com' ? 'admin' : 'investor';
         await setDoc(doc(db, 'users', user.uid), {
+          ...existingData,
           uid: user.uid,
-          name: formData.name,
+          name: formData.name || (existingData as any).name || '',
           email: formData.email,
-          phone: formData.phone,
+          phone: formData.phone || (existingData as any).phone || '',
           role: role,
-          createdAt: new Date().toISOString()
+          createdAt: (existingData as any).createdAt || new Date().toISOString()
         });
+
+        if (oldDocId && oldDocId !== user.uid) {
+          await deleteDoc(doc(db, 'users', oldDocId));
+        }
 
         navigate(role === 'admin' ? '/admin' : '/');
       } else {
@@ -101,14 +118,33 @@ export default function Login() {
       
       if (!userDoc.exists()) {
         const role = user.email === 'alvymahamudulhasan@gmail.com' ? 'admin' : 'investor';
+        
+        // Check if there is an existing pre-created profile under this email
+        const usersRef = collection(db, 'users');
+        const qEmail = query(usersRef, where('email', '==', user.email));
+        const emailSnapshot = await getDocs(qEmail);
+        
+        let existingData = {};
+        let oldDocId = null;
+        if (!emailSnapshot.empty) {
+          const oldDoc = emailSnapshot.docs[0];
+          existingData = oldDoc.data();
+          oldDocId = oldDoc.id;
+        }
+
         await setDoc(doc(db, 'users', user.uid), {
+          ...existingData,
           uid: user.uid,
-          name: user.displayName,
-          email: user.email,
+          name: user.displayName || (existingData as any).name || '',
+          email: user.email || '',
           role: role,
-          createdAt: new Date().toISOString()
+          createdAt: (existingData as any).createdAt || new Date().toISOString()
         });
         
+        if (oldDocId && oldDocId !== user.uid) {
+          await deleteDoc(doc(db, 'users', oldDocId));
+        }
+
         navigate(role === 'admin' ? '/admin' : '/');
       } else {
         const role = userDoc.data().role;

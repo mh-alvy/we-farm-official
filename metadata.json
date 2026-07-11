@@ -1,5 +1,8 @@
 {
   "name": "WeFarm - Soil to Soul",
   "description": "A family-run regenerative farm in Cumilla, Bangladesh, committed to nourishing communities with fresh, honest food.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
