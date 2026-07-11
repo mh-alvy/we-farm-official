@@ -319,7 +319,14 @@ export default function AdminInvestments() {
         })
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseErr) {
+        throw new Error(`Server returned a non-JSON response (Status ${response.status}): ${responseText.substring(0, 150) || '(empty response)'}`);
+      }
+
       if (result.success) {
         setSmsStatus({ type: 'success', text: `SMS sent successfully to ${uniquePhones.length} recipient(s)!` });
         setSmsMessage('');
