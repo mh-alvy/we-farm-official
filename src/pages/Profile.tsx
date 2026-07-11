@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, storage } from '../firebase';
+import { auth, db } from '../firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { User, Phone, Mail, MapPin, Briefcase, Landmark, Users, Save, ShieldCheck, Calendar, FileText, Upload, CheckCircle2, AlertCircle, FileType } from 'lucide-react';
 import { UserProfile } from '../types';
 
@@ -34,15 +33,60 @@ export default function Profile() {
     setUploading(fileType);
     
     try {
-      const storageRef = ref(storage, `kyc/${user.uid}/${fileType}_${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const originalDataUrl = event.target?.result as string;
+          if (file.type.startsWith('image/')) {
+            const img = new Image();
+            img.src = originalDataUrl;
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 800;
+              const MAX_HEIGHT = 600;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) {
+                resolve(originalDataUrl);
+                return;
+              }
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.onerror = () => {
+              resolve(originalDataUrl);
+            };
+          } else {
+            resolve(originalDataUrl);
+          }
+        };
+        reader.onerror = (err) => {
+          reject(err);
+        };
+      });
+
       setUser({
         ...user,
         investorProfile: {
           ...user.investorProfile,
-          [field]: url
+          [field]: dataUrl
         }
       });
       setMessage({ type: 'success', text: 'File uploaded successfully! Click save to update profile.' });

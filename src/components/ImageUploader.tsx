@@ -1,6 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
 import { Upload, X, Check, Loader2, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -34,7 +32,7 @@ export default function ImageUploader({
     }
   };
 
-  const uploadFile = (file: File) => {
+  const uploadFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError('Please select a valid image file (PNG, JPG, WEBP, etc.)');
       return;
@@ -49,36 +47,76 @@ export default function ImageUploader({
     setError(null);
     setProgress(0);
 
-    const fileExtension = file.name.split('.').pop();
-    const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExtension}`;
-    const storageRef = ref(storage, `${folder}/${uniqueFileName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const originalDataUrl = event.target?.result as string;
+          const img = new Image();
+          img.src = originalDataUrl;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 600;
+            let width = img.width;
+            let height = img.height;
 
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const percentage = Math.round(
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-        );
-        setProgress(percentage);
-      },
-      (err) => {
-        console.error("Upload error:", err);
-        setError('Upload failed. Please try again.');
-        setProgress(null);
-      },
-      async () => {
-        try {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          onUploadSuccess(downloadUrl);
-          setProgress(null);
-        } catch (urlErr) {
-          console.error("Error getting download URL:", urlErr);
-          setError('Failed to retrieve image URL.');
-          setProgress(null);
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              resolve(originalDataUrl);
+              return;
+            }
+
+            ctx.drawImage(img, 0, 0, width, height);
+            // Compress as JPEG at 0.7 quality to keep size tiny (<50KB)
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(compressed);
+          };
+          img.onerror = () => {
+            resolve(originalDataUrl);
+          };
+        };
+        reader.onerror = (err) => {
+          reject(err);
+        };
+      });
+
+      // Smooth progress bar simulation for realistic and polished user feedback
+      let currentProgress = 0;
+      const interval = setInterval(() => {
+        currentProgress += 10;
+        if (currentProgress >= 100) {
+          clearInterval(interval);
+          setProgress(100);
+          setTimeout(() => {
+            onUploadSuccess(dataUrl);
+            setProgress(null);
+          }, 150);
+        } else {
+          setProgress(currentProgress);
         }
-      }
-    );
+      }, 30);
+
+    } catch (err) {
+      console.error("Image processing error:", err);
+      setError('Upload failed. Please try again.');
+      setProgress(null);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
