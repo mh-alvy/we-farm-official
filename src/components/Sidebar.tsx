@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   Users,
   Layout,
-  X
+  X,
+  Moon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,6 +34,7 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps)
     { name: 'Projects', path: '/admin/projects', icon: LayoutDashboard },
     { name: 'Investments', path: '/admin/investments', icon: TrendingUp },
     { name: 'Site Content', path: '/admin/settings', icon: Layout },
+    { name: 'Islamic Bar', path: '/admin/islamic-bar', icon: Moon },
   ];
 
   const handleLinkClick = () => {

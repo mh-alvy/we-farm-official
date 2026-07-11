@@ -17,6 +17,7 @@ import AdminProjects from './pages/admin/Projects';
 import UserProfile from './pages/Profile';
 import AdminUsers from './pages/admin/Users';
 import AdminSiteSettings from './pages/admin/SiteSettings';
+import AdminIslamicAnnouncementSettings from './pages/admin/IslamicAnnouncementSettings';
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="cows" element={<AdminCows />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="settings" element={<AdminSiteSettings />} />
+          <Route path="islamic-bar" element={<AdminIslamicAnnouncementSettings />} />
           <Route path="finances" element={<AdminFinances />} />
           <Route path="inventory" element={<AdminInventory />} />
           <Route path="orders" element={<AdminOrders />} />
