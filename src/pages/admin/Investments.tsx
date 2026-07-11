@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, doc, getDoc, where, limit, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Investment, UserProfile } from '../../types';
-import { TrendingUp, User, Mail, Calendar, DollarSign, Target, FileSearch, X, Phone, MapPin, Landmark, Briefcase, Droplets, FileType, Trash2, UserPlus, Send } from 'lucide-react';
+import { TrendingUp, User, Mail, Calendar, DollarSign, Target, FileSearch, X, Phone, MapPin, Landmark, Briefcase, Droplets, FileType, Trash2, UserPlus, Send, Pencil } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -30,6 +30,20 @@ export default function AdminInvestments() {
     amount: '',
     date: new Date().toISOString().split('T')[0]
   });
+
+  // Edit investment/investor state variables
+  const [selectedInvestmentToEdit, setSelectedInvestmentToEdit] = useState<Investment | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    investorName: '',
+    investorEmail: '',
+    investorPhone: '',
+    projectId: '',
+    projectTitle: '',
+    amount: '',
+    date: ''
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [smsSending, setSmsSending] = useState(false);
@@ -142,6 +156,120 @@ export default function AdminInvestments() {
     } catch (err) {
       console.error("Error adding manual investment:", err);
       alert("Failed to add investment");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = async (inv: Investment) => {
+    setSelectedInvestmentToEdit(inv);
+    setEditLoading(true);
+    setIsEditModalOpen(true);
+    
+    let phoneVal = '';
+    try {
+      const qUser = query(collection(db, 'users'), where('email', '==', inv.investorEmail), limit(1));
+      const userSnap = await getDocs(qUser);
+      if (!userSnap.empty) {
+        phoneVal = userSnap.docs[0].data().phone || '';
+      }
+    } catch (err) {
+      console.error("Error fetching user phone for editing:", err);
+    }
+
+    let formattedDate = '';
+    if (inv.date) {
+      try {
+        formattedDate = new Date(inv.date).toISOString().split('T')[0];
+      } catch (e) {
+        formattedDate = inv.date.split('T')[0] || '';
+      }
+    }
+
+    setEditFormData({
+      investorName: inv.investorName || '',
+      investorEmail: inv.investorEmail || '',
+      investorPhone: phoneVal,
+      projectId: inv.projectId === 'unassigned' ? '' : (inv.projectId || ''),
+      projectTitle: inv.projectId === 'unassigned' ? (inv.projectTitle || '') : '',
+      amount: inv.amount ? String(inv.amount) : '',
+      date: formattedDate
+    });
+    setEditLoading(false);
+  };
+
+  const handleUpdateInvestment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvestmentToEdit) return;
+    setLoading(true);
+    try {
+      const name = editFormData.investorName.trim() || 'Anonymous Investor';
+      const email = editFormData.investorEmail.trim() || `guest_${Date.now()}@wefarm.com`;
+      const phone = editFormData.investorPhone.trim() || '';
+      const amount = parseFloat(editFormData.amount) || 0;
+      const dateStr = editFormData.date || new Date().toISOString().split('T')[0];
+      
+      let finalProjId = editFormData.projectId;
+      let finalProjTitle = editFormData.projectTitle;
+      
+      if (finalProjId) {
+        const selectedProj = projects.find(p => p.id === finalProjId);
+        if (selectedProj) {
+          finalProjTitle = selectedProj.title;
+        }
+      } else {
+        finalProjId = 'unassigned';
+        finalProjTitle = finalProjTitle.trim() || 'General Fund';
+      }
+
+      const oldEmail = selectedInvestmentToEdit.investorEmail;
+      
+      const qOldUser = query(collection(db, 'users'), where('email', '==', oldEmail), limit(1));
+      const oldUserSnap = await getDocs(qOldUser);
+      
+      if (!oldUserSnap.empty) {
+        const userDocId = oldUserSnap.docs[0].id;
+        await updateDoc(doc(db, 'users', userDocId), {
+          name: name,
+          email: email,
+          phone: phone
+        });
+      } else {
+        const qNewUser = query(collection(db, 'users'), where('email', '==', email), limit(1));
+        const newUserSnap = await getDocs(qNewUser);
+        if (newUserSnap.empty) {
+          await addDoc(collection(db, 'users'), {
+            name: name,
+            email: email,
+            phone: phone,
+            role: 'investor',
+            createdAt: new Date().toISOString(),
+            isPreCreated: true
+          });
+        } else {
+          const userDocId = newUserSnap.docs[0].id;
+          await updateDoc(doc(db, 'users', userDocId), {
+            name: name,
+            phone: phone
+          });
+        }
+      }
+
+      await updateDoc(doc(db, 'investments', selectedInvestmentToEdit.id!), {
+        investorName: name,
+        investorEmail: email,
+        projectId: finalProjId,
+        projectTitle: finalProjTitle,
+        amount: amount,
+        date: new Date(dateStr).toISOString()
+      });
+
+      setIsEditModalOpen(false);
+      setSelectedInvestmentToEdit(null);
+      fetchInvestments();
+    } catch (err) {
+      console.error("Error updating investment:", err);
+      alert("Failed to update investment");
     } finally {
       setLoading(false);
     }
@@ -353,6 +481,13 @@ export default function AdminInvestments() {
                         title="View Investor Profile"
                       >
                         <FileSearch className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleEditClick(inv)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Edit Investment"
+                      >
+                        <Pencil className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => setSelectedInvestmentToDelete(inv)}
@@ -615,6 +750,157 @@ export default function AdminInvestments() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Investor & Investment Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditModalOpen(false)}
+              className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden p-6 z-10 my-8 font-sans"
+            >
+              <div className="flex justify-between items-center pb-4 border-b border-gray-100 mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                    <Pencil className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Edit Investment Details</h3>
+                    <p className="text-xs text-gray-500">Modify investor profile and investment records.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {editLoading ? (
+                <div className="py-12 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Fetching details...</p>
+                </div>
+              ) : (
+                <form onSubmit={handleUpdateInvestment} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Investor Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.investorName}
+                      onChange={(e) => setEditFormData({ ...editFormData, investorName: e.target.value })}
+                      placeholder="Enter full name"
+                      required
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Email Address</label>
+                      <input
+                        type="email"
+                        value={editFormData.investorEmail}
+                        onChange={(e) => setEditFormData({ ...editFormData, investorEmail: e.target.value })}
+                        placeholder="Enter email"
+                        required
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Phone Number</label>
+                      <input
+                        type="tel"
+                        value={editFormData.investorPhone}
+                        onChange={(e) => setEditFormData({ ...editFormData, investorPhone: e.target.value })}
+                        placeholder="e.g. 017XXXXXXXX"
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Select Project</label>
+                      <select
+                        value={editFormData.projectId}
+                        onChange={(e) => setEditFormData({ ...editFormData, projectId: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                      >
+                        <option value="">-- Custom/Unassigned --</option>
+                        {projects.map(proj => (
+                          <option key={proj.id} value={proj.id}>{proj.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Custom Project Title</label>
+                      <input
+                        type="text"
+                        value={editFormData.projectTitle}
+                        onChange={(e) => setEditFormData({ ...editFormData, projectTitle: e.target.value })}
+                        placeholder="e.g. General Fund"
+                        disabled={!!editFormData.projectId}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Investment Amount</label>
+                      <input
+                        type="number"
+                        value={editFormData.amount}
+                        onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                        placeholder="0.00"
+                        required
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">Investment Date</label>
+                      <input
+                        type="date"
+                        value={editFormData.date}
+                        onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                        required
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100 flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-100 transition-all text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-md shadow-green-100 transition-all text-sm flex items-center justify-center space-x-2"
+                    >
+                      <span>Update Record</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
