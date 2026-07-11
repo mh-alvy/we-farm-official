@@ -7,7 +7,11 @@ import { doc, getDoc } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import { FARM_NAME } from '../constants';
 
-export default function Navbar() {
+interface NavbarProps {
+  isBarActive?: boolean;
+}
+
+export default function Navbar({ isBarActive }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -49,7 +53,10 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
+    <nav className={cn(
+      "bg-white border-b border-gray-100 sticky z-50 transition-all duration-300",
+      isBarActive ? "top-[42px] sm:top-[46px]" : "top-0"
+    )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">

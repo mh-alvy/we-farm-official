@@ -346,7 +346,7 @@ export default function IslamicAnnouncementBar() {
     <>
       <div 
         id="islamic-announcement-bar"
-        className="w-full bg-emerald-950 border-b border-amber-500/20 text-white font-sans text-xs md:text-sm h-[42px] sm:h-[46px] flex items-center justify-between relative overflow-hidden select-none z-[100] cursor-pointer shadow-md transition-all duration-300"
+        className="w-full bg-emerald-950 border-b border-amber-500/20 text-white font-sans text-xs md:text-sm h-[42px] sm:h-[46px] flex items-center justify-between sticky top-0 overflow-hidden select-none z-[100] cursor-pointer shadow-md transition-all duration-300"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleBarClick}
