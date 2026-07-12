@@ -310,7 +310,7 @@ export default function AdminInvestments() {
         throw new Error("No valid phone numbers found for the selected recipients.");
       }
 
-      const response = await fetch("/api/send-sms", {
+      const response = await fetch("/api/notify-investors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

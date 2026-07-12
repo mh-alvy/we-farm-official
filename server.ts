@@ -12,8 +12,11 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Serve Hero Section Animated Frames under /hero-frames
+  app.use("/hero-frames", express.static(path.join(process.cwd(), "Hero Section Animated Frames")));
+
   // API Route: Send SMS via Alpha Net SMS Gateway (https://api.sms.net.bd/sendsms)
-  app.post("/api/send-sms", async (req, res) => {
+  app.post("/api/notify-investors", async (req, res) => {
     try {
       const { recipients, message } = req.body;
       

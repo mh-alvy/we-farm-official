@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'motion/react';
 import { Leaf, TrendingUp, ShieldCheck, ShoppingBag, ArrowRight, Heart, Zap, CheckCircle } from 'lucide-react';
 import { FARM_NAME, FARM_TAGLINE } from '../constants';
 import { cn } from '../lib/utils';
@@ -15,9 +15,181 @@ const IconMap: { [key: string]: any } = {
   CheckCircle
 };
 
+function drawImageProp(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
+  const imgWidth = img.naturalWidth || img.width;
+  const imgHeight = img.naturalHeight || img.height;
+  if (!imgWidth || !imgHeight) return;
+
+  const imgRatio = imgWidth / imgHeight;
+  const containerRatio = w / h;
+
+  let sx = 0;
+  let sy = 0;
+  let sWidth = imgWidth;
+  let sHeight = imgHeight;
+
+  if (containerRatio > imgRatio) {
+    sHeight = imgWidth / containerRatio;
+    sy = (imgHeight - sHeight) / 2;
+  } else {
+    sWidth = imgHeight * containerRatio;
+    sx = (imgWidth - sWidth) / 2;
+  }
+
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, x, y, w, h);
+}
+
 export default function Home() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [frameIndex, setFrameIndex] = useState(1);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const imagesRef = useRef<{ [key: number]: HTMLImageElement }>({});
+  const totalFrames = 217;
+
+  // Global window scroll state tracker to force re-renders for live mode readouts
+  const [scrollYValue, setScrollYValue] = useState(0);
+
+  // Use framer-motion scroll progress of the container section
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"]
+  });
+
+  useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    setScrollYValue(latest);
+    if (latest > 0.005) {
+      const targetFrame = Math.floor(latest * (totalFrames - 1)) + 1;
+      setFrameIndex(Math.min(Math.max(targetFrame, 1), totalFrames));
+    }
+  });
+
+  // Background loading & initialization
+  useEffect(() => {
+    if (settings && settings.hero?.useScrollEffect === false) {
+      setIsLoaded(true);
+      return;
+    }
+
+    // 1. Load the first frame immediately for instant first paint
+    const img1 = new Image();
+    img1.src = `/hero-frames/ezgif-frame-001.jpg`;
+    img1.onload = () => {
+      imagesRef.current[1] = img1;
+      
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        const container = canvas.parentElement;
+        if (ctx && container) {
+          const width = container.clientWidth;
+          const height = container.clientHeight;
+          const dpr = window.devicePixelRatio || 1;
+          canvas.width = width * dpr;
+          canvas.height = height * dpr;
+          ctx.scale(dpr, dpr);
+          drawImageProp(ctx, img1, 0, 0, width, height);
+        }
+      }
+
+      // 2. Load other frames sequentially to preserve network resources and build cache
+      let loadedCount = 1;
+      const loadNext = (index: number) => {
+        if (settings && settings.hero?.useScrollEffect === false) {
+          setIsLoaded(true);
+          return;
+        }
+        if (index > totalFrames) {
+          setIsLoaded(true);
+          return;
+        }
+        const img = new Image();
+        img.src = `/hero-frames/ezgif-frame-${String(index).padStart(3, '0')}.jpg`;
+        img.onload = () => {
+          imagesRef.current[index] = img;
+          loadedCount++;
+          setLoadingProgress(Math.floor((loadedCount / totalFrames) * 100));
+          loadNext(index + 1);
+        };
+        img.onerror = () => {
+          // Fallback if a frame is missing
+          loadedCount++;
+          setLoadingProgress(Math.floor((loadedCount / totalFrames) * 100));
+          loadNext(index + 1);
+        };
+      };
+      
+      loadNext(2);
+    };
+  }, [settings?.hero?.useScrollEffect, settings]);
+
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Handle canvas sizing with a single ResizeObserver
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const container = canvas.parentElement;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width, height });
+      }
+    });
+
+    resizeObserver.observe(container);
+
+    // Initial size
+    setDimensions({
+      width: container.clientWidth,
+      height: container.clientHeight
+    });
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Handle drawing when dimensions or frameIndex changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = dimensions.width * dpr;
+    canvas.height = dimensions.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const img = imagesRef.current[frameIndex];
+    if (img) {
+      drawImageProp(ctx, img, 0, 0, dimensions.width, dimensions.height);
+    } else {
+      const tempImg = new Image();
+      tempImg.src = `/hero-frames/ezgif-frame-${String(frameIndex).padStart(3, '0')}.jpg`;
+      tempImg.onload = () => {
+        imagesRef.current[frameIndex] = tempImg;
+        // Verify frame index hasn't changed while loading
+        const currentCtx = canvas.getContext('2d');
+        if (currentCtx) {
+          drawImageProp(ctx, tempImg, 0, 0, dimensions.width, dimensions.height);
+        }
+      };
+    }
+  }, [frameIndex, dimensions]);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -30,16 +202,15 @@ export default function Home() {
     fetchSettings();
   }, []);
 
-  // Automatic sliding logic
-  useEffect(() => {
-    if (!settings?.hero?.images || settings.hero.images.length <= 1) return;
-    
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % settings.hero.images.length);
-    }, 5000);
+  const heroImages = settings?.hero?.images || ['https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&q=80&w=1200'];
 
-    return () => clearInterval(timer);
-  }, [settings?.hero?.images]);
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveImageIndex((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroImages.length]);
 
   const features = [
     {
@@ -75,110 +246,151 @@ export default function Home() {
   })) || features;
 
   return (
-    <div className="space-y-24">
-      {/* Hero Section */}
-      <section className="relative min-h-[80vh] flex items-center overflow-hidden bg-[#FDFCF7]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="z-10"
-            >
-              <span className="text-sm font-bold tracking-[0.2em] text-[#8B735B] uppercase mb-4 block">
-                {settings?.hero.tagline || FARM_TAGLINE}
-              </span>
-              <h1 className="text-5xl md:text-7xl font-bold text-[#1A2E26] leading-tight mb-6 whitespace-pre-line">
-                {settings?.hero.title || (
-                  <>
-                    Fresh Farm <br />
-                    Products From <br />
-                    Our Farm
-                  </>
-                )}
-              </h1>
-              <p className="text-lg text-gray-600 mb-10 max-w-lg leading-relaxed">
-                {settings?.hero.description || "Rooted in the philosophy of Soil to Soul. We practice regenerative farming to bring you meat and dairy that nourishes the body and respects the earth."}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a
-                  href="#contact"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="bg-[#1A2E26] hover:bg-[#2A3E36] text-white px-8 py-4 rounded-full font-semibold text-lg transition-all text-center"
-                >
-                  Contact Us
-                </a>
-                <a
-                  href="#invest"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('invest')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="bg-white border border-[#E5E2D9] hover:bg-gray-50 text-[#1A2E26] px-8 py-4 rounded-full font-semibold text-lg transition-all text-center"
-                >
-                  Invest in {FARM_NAME}
-                </a>
-              </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1 }}
-              className="relative"
-            >
-              <div className="rounded-[40px] overflow-hidden shadow-2xl relative aspect-[4/3]">
-                <AnimatePresence mode="wait">
-                  <motion.img
-                    key={currentSlide}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 1 }}
-                    src={settings?.hero.images[currentSlide] || "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&q=80&w=1200"}
-                    alt="Fresh farm produce"
-                    className="w-full h-full object-cover absolute inset-0"
-                    referrerPolicy="no-referrer"
-                  />
-                </AnimatePresence>
-                
-                {/* Slider Indicators */}
-                {settings?.hero.images && settings.hero.images.length > 1 && (
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
-                    {settings.hero.images.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentSlide(idx)}
-                        className={cn(
-                          "w-2 h-2 rounded-full transition-all",
-                          idx === currentSlide ? "bg-white w-6" : "bg-white/40"
-                        )}
-                      />
-                    ))}
+    <div className="flex flex-col">
+      {settings?.hero?.useScrollEffect !== false ? (
+        /* Scroll-scraped Frame Animation Hero Section */
+        <div 
+          ref={containerRef} 
+          className="relative w-full h-[180vh] bg-[#FDFCF7]"
+        >
+          <div className="sticky top-0 h-screen w-full overflow-hidden bg-[#FDFCF7]">
+            {/* Dynamic Canvas */}
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 w-full h-full object-cover animate-fade-in"
+            />
+            
+            {/* Progress Loader Overlay to prevent seeing a blank white/off-white screen before frames load */}
+            {!isLoaded && (
+              <div className="absolute inset-0 bg-[#FDFCF7] z-30 flex flex-col items-center justify-center space-y-6">
+                <div className="w-12 h-12 border-4 border-green-700/10 border-t-green-700 rounded-full animate-spin" />
+                <div className="text-center space-y-2">
+                  <p className="text-xs font-bold tracking-[0.2em] text-[#8B735B] uppercase">Loading AgroVest Experience</p>
+                  <div className="w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden mx-auto">
+                    <div 
+                      className="h-full bg-green-700 transition-all duration-300" 
+                      style={{ width: `${loadingProgress}%` }}
+                    />
                   </div>
-                )}
-              </div>
-              {/* Floating Badge */}
-              <div className="absolute -bottom-6 -left-6 bg-white p-6 rounded-3xl shadow-xl flex items-center space-x-4">
-                <div className="bg-green-100 p-3 rounded-full">
-                  <Leaf className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-gray-900">100% Natural</div>
-                  <div className="text-xs text-gray-500">From our honest soil</div>
+                  <p className="text-[10px] text-gray-400 font-mono">{loadingProgress}% Loaded</p>
                 </div>
               </div>
-            </motion.div>
+            )}
           </div>
         </div>
-      </section>
+      ) : (
+        /* Normal Hero Section (Classic Slider like before) */
+        <div className="relative min-h-[90vh] flex items-center bg-[#FDFCF7] overflow-hidden pt-20">
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#1A2E26_1px,transparent_1px)] [background-size:16px_16px]" />
+          
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 w-full relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              {/* Left Column: Text Content */}
+              <div className="lg:col-span-7 space-y-8 text-left">
+                <motion.span 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs font-bold tracking-[0.2em] text-[#8B735B] uppercase block"
+                >
+                  {settings?.hero?.tagline || "SOIL TO SOUL"}
+                </motion.span>
+                
+                <motion.h1 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-[#1A2E26] leading-[1.1] tracking-tight"
+                >
+                  {settings?.hero?.title || "Fresh Farm Products From Our Farm"}
+                </motion.h1>
+                
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-lg text-gray-600 max-w-2xl leading-relaxed"
+                >
+                  {settings?.hero?.description || "Rooted in the philosophy of Soil to Soul. We practice regenerative farming to bring you meat and dairy that nourishes the body and respects the earth."}
+                </motion.p>
+                
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="flex flex-col sm:flex-row gap-4 pt-4"
+                >
+                  <a
+                    href="#invest"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById('invest')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="bg-[#1A2E26] hover:bg-[#254236] text-white px-8 py-4 rounded-full font-bold text-lg transition-all text-center shadow-md active:scale-95"
+                  >
+                    Become an Investor
+                  </a>
+                  <a
+                    href="#products"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="bg-transparent border-2 border-[#1A2E26]/20 hover:border-[#1A2E26] hover:bg-[#1A2E26]/5 text-[#1A2E26] px-8 py-4 rounded-full font-bold text-lg transition-all text-center active:scale-95"
+                  >
+                    Explore Shop
+                  </a>
+                </motion.div>
+              </div>
+              
+              {/* Right Column: Sliding/Rotating Image Gallery */}
+              <div className="lg:col-span-5 relative">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                  className="relative aspect-[4/3] rounded-[48px] overflow-hidden shadow-2xl bg-gray-100 border-4 border-white"
+                >
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={activeImageIndex}
+                      src={heroImages[activeImageIndex]}
+                      initial={{ opacity: 0, scale: 1.05 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.6 }}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      alt="AgroVest Farm Slide"
+                    />
+                  </AnimatePresence>
+                  
+                  {/* Image Navigation Dots */}
+                  {heroImages.length > 1 && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2.5 z-20 bg-black/20 backdrop-blur-md px-4 py-2 rounded-full">
+                      {heroImages.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveImageIndex(idx)}
+                          className={cn(
+                            "w-2 h-2 rounded-full transition-all duration-300 cursor-pointer",
+                            idx === activeImageIndex ? "bg-white w-5" : "bg-white/50"
+                          )}
+                          aria-label={`Go to slide ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Why Choose Us */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
+      <section className="w-full bg-[#FDFCF7] py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs font-bold tracking-[0.2em] text-[#8B735B] uppercase mb-4 block">
             {settings?.featuresSection?.tagline || "WHY CHOOSE US"}
           </span>
@@ -204,10 +416,11 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* About Preview */}
-      <section className="bg-[#1A2E26] py-24 text-white overflow-hidden">
+      <section className="bg-[#1A2E26] py-24 text-white overflow-hidden w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1">
@@ -256,7 +469,7 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 w-full">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center bg-white p-12 rounded-[40px] shadow-sm border border-gray-100">
           {(settings?.statsSection?.stats || [
             { value: '500+', label: 'Happy Animals' },

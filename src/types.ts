@@ -141,6 +141,7 @@ export interface HeroContent {
   title: string;
   description: string;
   images: string[];
+  useScrollEffect?: boolean;
 }
 
 export interface FeaturesSectionContent {

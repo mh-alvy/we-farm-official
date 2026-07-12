@@ -5,13 +5,15 @@ import { Save, Image as ImageIcon, Plus, X, Layout, Type, Info, CheckCircle2, Sh
 import { SiteSettings } from '../../types';
 import { motion } from 'motion/react';
 import ImageUploader from '../../components/ImageUploader';
+import { cn } from '../../lib/utils';
 
 const DEFAULT_SETTINGS: SiteSettings = {
   hero: {
     tagline: 'SOIL TO SOUL',
     title: 'Fresh Farm Products From Our Farm',
     description: 'Rooted in the philosophy of Soil to Soul. We practice regenerative farming to bring you meat and dairy that nourishes the body and respects the earth.',
-    images: ['https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&q=80&w=1200']
+    images: ['https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&q=80&w=1200'],
+    useScrollEffect: true
   },
   featuresSection: {
     tagline: 'WHY CHOOSE US',
@@ -248,6 +250,55 @@ export default function AdminSiteSettings() {
         </div>
 
         <div className="p-8 space-y-8">
+          {/* Hero Style Selection */}
+          <div className="bg-green-50/40 p-6 rounded-2xl border border-green-100/50 space-y-4">
+            <label className="block text-[10px] font-bold text-green-800 uppercase tracking-widest flex items-center space-x-2">
+              <Layout className="h-4 w-4" />
+              <span>Hero Section Display Style</span>
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setSettings({
+                  ...settings,
+                  hero: { ...settings.hero, useScrollEffect: true }
+                })}
+                className={cn(
+                  "p-5 rounded-xl border text-left transition-all flex flex-col space-y-2 cursor-pointer",
+                  settings.hero.useScrollEffect !== false
+                    ? "bg-white border-green-600 ring-2 ring-green-100 shadow-sm"
+                    : "bg-white border-gray-100 hover:border-gray-200"
+                )}
+              >
+                <span className="font-bold text-sm text-gray-900">Scroll-scraped Animation</span>
+                <span className="text-xs text-gray-500 leading-relaxed">
+                  Displays interactive frames that animate beautifully as the user scrolls down the page.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSettings({
+                  ...settings,
+                  hero: { ...settings.hero, useScrollEffect: false }
+                })}
+                className={cn(
+                  "p-5 rounded-xl border text-left transition-all flex flex-col space-y-2 cursor-pointer",
+                  settings.hero.useScrollEffect === false
+                    ? "bg-white border-green-600 ring-2 ring-green-100 shadow-sm"
+                    : "bg-white border-gray-100 hover:border-gray-200"
+                )}
+              >
+                <span className="font-bold text-sm text-gray-900">Normal Hero Slider</span>
+                <span className="text-xs text-gray-500 leading-relaxed">
+                  Displays a clean, classic hero section with a sliding gallery of the uploaded images.
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
           {/* Text Content */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">

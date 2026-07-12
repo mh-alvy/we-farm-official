@@ -7,7 +7,7 @@ import Contact from './Contact';
 
 export default function MainPage() {
   return (
-    <div className="flex flex-col overflow-x-hidden">
+    <div className="flex flex-col overflow-x-clip">
       <section id="home">
         <Home />
       </section>

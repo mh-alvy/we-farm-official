@@ -3,9 +3,10 @@ import { collection, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Project, Investment, SiteSettings } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, Calendar, X, CheckCircle2, Leaf, Target, FileText, Download, ShieldCheck, Info, ExternalLink } from 'lucide-react';
+import { TrendingUp, Calendar, X, CheckCircle2, Leaf, Target, FileText, Download, ShieldCheck, Info, ExternalLink, Share2, Copy, Check } from 'lucide-react';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import { FARM_NAME } from '../constants';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Projects() {
   const [projects, setProducts] = useState<Project[]>([]);
@@ -16,6 +17,12 @@ export default function Projects() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [hasCheckedUrl, setHasCheckedUrl] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const projectIdParam = searchParams.get('project');
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -36,6 +43,43 @@ export default function Projects() {
     fetchProjects();
     fetchSettings();
   }, []);
+
+  // Sync URL query param to automatically open details modal
+  useEffect(() => {
+    if (!loading && projects.length > 0 && projectIdParam && !hasCheckedUrl) {
+      const matched = projects.find(p => p.id === projectIdParam);
+      if (matched) {
+        setViewingProject(matched);
+        setTimeout(() => {
+          const element = document.getElementById('invest');
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+      }
+      setHasCheckedUrl(true);
+    }
+  }, [loading, projects, projectIdParam, hasCheckedUrl]);
+
+  const openProjectDetails = (project: Project) => {
+    setViewingProject(project);
+    setSearchParams({ project: project.id || '' });
+  };
+
+  const closeProjectDetails = () => {
+    setViewingProject(null);
+    setSearchParams({});
+  };
+
+  const handleCopyLink = (projectId: string) => {
+    const shareUrl = `${window.location.origin}/?project=${projectId}#invest`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopiedId(projectId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(err => {
+      console.error('Failed to copy link:', err);
+    });
+  };
 
   const handleInvest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,13 +165,33 @@ export default function Projects() {
               <p className="text-gray-500 text-sm mb-3 leading-relaxed line-clamp-3">
                 {project.description}
               </p>
-              <button
-                onClick={() => setViewingProject(project)}
-                className="text-green-700 hover:text-green-800 text-xs font-bold uppercase tracking-wider mb-5 flex items-center transition-colors cursor-pointer text-left"
-              >
-                <Info className="h-4 w-4 mr-1.5" />
-                <span>Read More / View Details</span>
-              </button>
+              <div className="flex items-center justify-between mb-5">
+                <button
+                  onClick={() => openProjectDetails(project)}
+                  className="text-green-700 hover:text-green-800 text-xs font-bold uppercase tracking-wider flex items-center transition-colors cursor-pointer text-left"
+                >
+                  <Info className="h-4 w-4 mr-1.5" />
+                  <span>Read More / View Details</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopyLink(project.id!)}
+                  className="inline-flex items-center space-x-1 text-gray-400 hover:text-green-700 text-xs font-bold transition-colors cursor-pointer"
+                  title="Share Project Link"
+                >
+                  {copiedId === project.id ? (
+                    <>
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span className="text-green-600">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="h-4 w-4" />
+                      <span>Share</span>
+                    </>
+                  )}
+                </button>
+              </div>
               
               <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-100">
                 <div className="flex items-center justify-between">
@@ -250,7 +314,7 @@ export default function Projects() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setViewingProject(null)}
+              onClick={closeProjectDetails}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
@@ -269,12 +333,28 @@ export default function Projects() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 
-                <button 
-                  onClick={() => setViewingProject(null)}
-                  className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-colors text-white"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+                <div className="absolute top-6 right-6 flex items-center space-x-2">
+                  <button 
+                    type="button"
+                    onClick={() => handleCopyLink(viewingProject.id!)}
+                    className="p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-colors text-white flex items-center justify-center cursor-pointer"
+                    title="Copy Share Link"
+                  >
+                    {copiedId === viewingProject.id ? (
+                      <Check className="h-5 w-5 text-green-400" />
+                    ) : (
+                      <Share2 className="h-5 w-5" />
+                    )}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={closeProjectDetails}
+                    className="p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-colors text-white flex items-center justify-center cursor-pointer"
+                    title="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
                 
                 <div className="absolute bottom-6 left-8 right-8">
                   <div className={cn(
@@ -300,6 +380,36 @@ export default function Projects() {
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Target Funding Amount</span>
                     <span className="text-lg sm:text-xl font-bold text-[#1A2E26]">{formatCurrency(viewingProject.targetAmount)}</span>
                   </div>
+                </div>
+
+                {/* Direct Share Link Section */}
+                <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <span className="text-[10px] font-bold text-green-800 uppercase tracking-wider flex items-center">
+                      <Share2 className="h-3.5 w-3.5 mr-1 text-green-700" />
+                      Direct Share Link
+                    </span>
+                    <p className="text-xs text-gray-500 truncate max-w-full select-all">
+                      {`${window.location.origin}/?project=${viewingProject.id}#invest`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyLink(viewingProject.id!)}
+                    className="flex-shrink-0 inline-flex items-center space-x-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  >
+                    {copiedId === viewingProject.id ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy Link</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 {/* Description */}
@@ -352,7 +462,7 @@ export default function Projects() {
               {/* Action Footer */}
               <div className="p-6 border-t border-gray-100 bg-gray-50 flex-shrink-0 flex items-center justify-between gap-4">
                 <button
-                  onClick={() => setViewingProject(null)}
+                  onClick={closeProjectDetails}
                   className="px-6 py-4 border border-gray-200 hover:bg-gray-100 rounded-2xl text-sm font-bold text-gray-500 transition-all cursor-pointer"
                 >
                   Close Window
@@ -360,7 +470,7 @@ export default function Projects() {
                 <button
                   onClick={() => {
                     setSelectedProject(viewingProject);
-                    setViewingProject(null);
+                    closeProjectDetails();
                   }}
                   disabled={viewingProject.status !== 'Active'}
                   className={cn(
