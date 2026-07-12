@@ -161,7 +161,27 @@ export default function Home() {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Handle drawing when dimensions or frameIndex changes
+  // Update canvas internal resolution when dimensions change
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = dimensions.width * dpr;
+    canvas.height = dimensions.height * dpr;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(dpr, dpr);
+      // Immediately draw the current frame to avoid a flash of white during initial layout
+      const img = imagesRef.current[frameIndex];
+      if (img) {
+        drawImageProp(ctx, img, 0, 0, dimensions.width, dimensions.height);
+      }
+    }
+  }, [dimensions]);
+
+  // Handle drawing when frameIndex changes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
@@ -169,27 +189,26 @@ export default function Home() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = dimensions.width * dpr;
-    canvas.height = dimensions.height * dpr;
-    ctx.scale(dpr, dpr);
-
     const img = imagesRef.current[frameIndex];
     if (img) {
       drawImageProp(ctx, img, 0, 0, dimensions.width, dimensions.height);
     } else {
+      // If the target frame is not loaded yet, we DO NOT clear the canvas or modify width/height.
+      // This leaves the previous frame completely visible, preventing any blank white/flicker.
       const tempImg = new Image();
       tempImg.src = `/hero-frames/ezgif-frame-${String(frameIndex).padStart(3, '0')}.jpg`;
       tempImg.onload = () => {
         imagesRef.current[frameIndex] = tempImg;
-        // Verify frame index hasn't changed while loading
-        const currentCtx = canvas.getContext('2d');
-        if (currentCtx) {
-          drawImageProp(ctx, tempImg, 0, 0, dimensions.width, dimensions.height);
+        const currentCanvas = canvasRef.current;
+        if (currentCanvas) {
+          const currentCtx = currentCanvas.getContext('2d');
+          if (currentCtx) {
+            drawImageProp(currentCtx, tempImg, 0, 0, dimensions.width, dimensions.height);
+          }
         }
       };
     }
-  }, [frameIndex, dimensions]);
+  }, [frameIndex, dimensions.width, dimensions.height]);
 
   useEffect(() => {
     async function fetchSettings() {
