@@ -259,23 +259,6 @@ export default function Home() {
               ref={canvasRef}
               className="absolute inset-0 w-full h-full object-cover animate-fade-in"
             />
-            
-            {/* Progress Loader Overlay to prevent seeing a blank white/off-white screen before frames load */}
-            {!isLoaded && (
-              <div className="absolute inset-0 bg-[#FDFCF7] z-30 flex flex-col items-center justify-center space-y-6">
-                <div className="w-12 h-12 border-4 border-green-700/10 border-t-green-700 rounded-full animate-spin" />
-                <div className="text-center space-y-2">
-                  <p className="text-xs font-bold tracking-[0.2em] text-[#8B735B] uppercase">Loading AgroVest Experience</p>
-                  <div className="w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden mx-auto">
-                    <div 
-                      className="h-full bg-green-700 transition-all duration-300" 
-                      style={{ width: `${loadingProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-gray-400 font-mono">{loadingProgress}% Loaded</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       ) : (
