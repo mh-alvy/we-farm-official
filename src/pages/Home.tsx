@@ -282,10 +282,10 @@ export default function Home() {
         </div>
       ) : (
         /* Normal Hero Section (Classic Slider like before) */
-        <div className="relative min-h-[90vh] flex items-center bg-[#FDFCF7] overflow-hidden pt-20">
+        <div className="relative min-h-[75vh] md:min-h-[85vh] flex items-center bg-[#FDFCF7] overflow-hidden pt-4 md:pt-6">
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#1A2E26_1px,transparent_1px)] [background-size:16px_16px]" />
           
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 w-full relative z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 w-full relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               {/* Left Column: Text Content */}
               <div className="lg:col-span-7 space-y-8 text-left">
