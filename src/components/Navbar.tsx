@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { User, Menu, X, LogOut, Leaf } from 'lucide-react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import { FARM_NAME } from '../constants';
 
@@ -15,7 +15,23 @@ export default function Navbar({ isBarActive }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [logoSettings, setLogoSettings] = useState<{ navLogoUrl?: string; navLogoHeight?: number }>({});
   const location = useLocation();
+
+  useEffect(() => {
+    const unsubLogo = onSnapshot(doc(db, 'settings', 'site'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.logo) {
+          setLogoSettings({
+            navLogoUrl: data.logo.navLogoUrl,
+            navLogoHeight: data.logo.navLogoHeight
+          });
+        }
+      }
+    });
+    return unsubLogo;
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -60,19 +76,33 @@ export default function Navbar({ isBarActive }: NavbarProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <a 
-              href="#home" 
+            <Link 
+              to="/#home" 
               onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('home')?.scrollIntoView({ behavior: 'smooth' });
+                if (location.pathname === '/') {
+                  e.preventDefault();
+                  document.getElementById('home')?.scrollIntoView({ behavior: 'smooth' });
+                }
               }}
               className="flex items-center space-x-2"
             >
-              <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
-                <Leaf className="h-6 w-6 text-green-700" />
-              </div>
-              <span className="text-xl font-bold text-gray-900 tracking-tight">{FARM_NAME}</span>
-            </a>
+              {logoSettings.navLogoUrl ? (
+                <img 
+                  src={logoSettings.navLogoUrl} 
+                  alt={FARM_NAME} 
+                  style={{ height: `${logoSettings.navLogoHeight || 24}px`, width: 'auto' }}
+                  className="object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <>
+                  <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
+                    <Leaf className="h-6 w-6 text-green-700" />
+                  </div>
+                  <span className="text-xl font-bold text-gray-900 tracking-tight">{FARM_NAME}</span>
+                </>
+              )}
+            </Link>
           </div>
 
           {/* Desktop Navigation */}

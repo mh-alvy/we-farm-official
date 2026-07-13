@@ -8,6 +8,12 @@ import ImageUploader from '../../components/ImageUploader';
 import { cn } from '../../lib/utils';
 
 const DEFAULT_SETTINGS: SiteSettings = {
+  logo: {
+    navLogoUrl: '',
+    footerLogoUrl: '',
+    navLogoHeight: 24,
+    footerLogoHeight: 32
+  },
   hero: {
     tagline: 'SOIL TO SOUL',
     title: 'Fresh Farm Products From Our Farm',
@@ -135,6 +141,7 @@ export default function AdminSiteSettings() {
           setSettings({
             ...DEFAULT_SETTINGS,
             ...data,
+            logo: { ...DEFAULT_SETTINGS.logo, ...(data.logo || {}) },
             hero: { ...DEFAULT_SETTINGS.hero, ...(data.hero || {}) },
             featuresSection: { ...DEFAULT_SETTINGS.featuresSection, ...(data.featuresSection || {}) },
             aboutSection: { ...DEFAULT_SETTINGS.aboutSection, ...(data.aboutSection || {}) },
@@ -239,6 +246,188 @@ export default function AdminSiteSettings() {
           <span className="font-bold">{actionMessage.text}</span>
         </motion.div>
       )}
+
+      {/* Logo Customization Editor */}
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-gray-50 px-8 py-4 border-b border-gray-100 flex items-center space-x-3">
+          <div className="bg-green-100 p-2 rounded-lg">
+            <ImageIcon className="h-5 w-5 text-green-600" />
+          </div>
+          <h2 className="font-bold text-gray-900 uppercase tracking-widest text-xs">Site Logo & Branding</h2>
+        </div>
+
+        <div className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Navbar Logo Config */}
+            <div className="space-y-6">
+              <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2 flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span>Navigation Bar Logo</span>
+              </h3>
+              
+              <div className="space-y-4">
+                <ImageUploader 
+                  label="Upload Navigation Logo" 
+                  currentImageUrl={settings.logo?.navLogoUrl || ''} 
+                  onUploadSuccess={(url) => setSettings({
+                    ...settings,
+                    logo: {
+                      ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                      navLogoUrl: url
+                    }
+                  })} 
+                  onClear={() => setSettings({
+                    ...settings,
+                    logo: {
+                      ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                      navLogoUrl: ''
+                    }
+                  })}
+                  folder="branding"
+                />
+                
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Or Paste Navigation Logo URL</label>
+                  <input
+                    type="text"
+                    value={settings.logo?.navLogoUrl || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      logo: {
+                        ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                        navLogoUrl: e.target.value
+                      }
+                    })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs"
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex justify-between">
+                    <span>Navigation Logo Height (px)</span>
+                    <span className="text-green-600 font-extrabold">{settings.logo?.navLogoHeight || 24}px</span>
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="16"
+                      max="120"
+                      value={settings.logo?.navLogoHeight || 24}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        logo: {
+                          ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                          navLogoHeight: parseInt(e.target.value, 10)
+                        }
+                      })}
+                      className="flex-grow accent-green-600"
+                    />
+                    <input
+                      type="number"
+                      min="16"
+                      max="120"
+                      value={settings.logo?.navLogoHeight || 24}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        logo: {
+                          ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                          navLogoHeight: parseInt(e.target.value, 10) || 24
+                        }
+                      })}
+                      className="w-16 px-2 py-1 bg-gray-50 border-none rounded-lg text-center text-xs font-bold focus:ring-2 focus:ring-green-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Logo Config */}
+            <div className="space-y-6">
+              <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2 flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span>Footer Section Logo</span>
+              </h3>
+              
+              <div className="space-y-4">
+                <ImageUploader 
+                  label="Upload Footer Logo" 
+                  currentImageUrl={settings.logo?.footerLogoUrl || ''} 
+                  onUploadSuccess={(url) => setSettings({
+                    ...settings,
+                    logo: {
+                      ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                      footerLogoUrl: url
+                    }
+                  })} 
+                  onClear={() => setSettings({
+                    ...settings,
+                    logo: {
+                      ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                      footerLogoUrl: ''
+                    }
+                  })}
+                  folder="branding"
+                />
+                
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Or Paste Footer Logo URL</label>
+                  <input
+                    type="text"
+                    value={settings.logo?.footerLogoUrl || ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      logo: {
+                        ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                        footerLogoUrl: e.target.value
+                      }
+                    })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs"
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex justify-between">
+                    <span>Footer Logo Height (px)</span>
+                    <span className="text-green-600 font-extrabold">{settings.logo?.footerLogoHeight || 32}px</span>
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="16"
+                      max="120"
+                      value={settings.logo?.footerLogoHeight || 32}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        logo: {
+                          ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                          footerLogoHeight: parseInt(e.target.value, 10)
+                        }
+                      })}
+                      className="flex-grow accent-green-600"
+                    />
+                    <input
+                      type="number"
+                      min="16"
+                      max="120"
+                      value={settings.logo?.footerLogoHeight || 32}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        logo: {
+                          ...(settings.logo || { navLogoHeight: 24, footerLogoHeight: 32 }),
+                          footerLogoHeight: parseInt(e.target.value, 10) || 32
+                        }
+                      })}
+                      className="w-16 px-2 py-1 bg-gray-50 border-none rounded-lg text-center text-xs font-bold focus:ring-2 focus:ring-green-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Hero Section Editor */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">

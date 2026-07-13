@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TrendingUp, Calendar, X, CheckCircle2, Leaf, Target, FileText, Download, ShieldCheck, Info, ExternalLink, Share2, Copy, Check } from 'lucide-react';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import { FARM_NAME } from '../constants';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [projects, setProducts] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -44,26 +45,19 @@ export default function Projects() {
     fetchSettings();
   }, []);
 
-  // Sync URL query param to automatically open details modal
+  // Sync URL query param to automatically redirect to details page
   useEffect(() => {
     if (!loading && projects.length > 0 && projectIdParam && !hasCheckedUrl) {
       const matched = projects.find(p => p.id === projectIdParam);
       if (matched) {
-        setViewingProject(matched);
-        setTimeout(() => {
-          const element = document.getElementById('invest');
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 100);
+        navigate(`/project/${matched.id}`);
       }
       setHasCheckedUrl(true);
     }
-  }, [loading, projects, projectIdParam, hasCheckedUrl]);
+  }, [loading, projects, projectIdParam, hasCheckedUrl, navigate]);
 
   const openProjectDetails = (project: Project) => {
-    setViewingProject(project);
-    setSearchParams({ project: project.id || '' });
+    navigate(`/project/${project.id}`);
   };
 
   const closeProjectDetails = () => {
@@ -72,7 +66,7 @@ export default function Projects() {
   };
 
   const handleCopyLink = (projectId: string) => {
-    const shareUrl = `${window.location.origin}/?project=${projectId}#invest`;
+    const shareUrl = `${window.location.origin}/project/${projectId}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopiedId(projectId);
       setTimeout(() => setCopiedId(null), 2000);

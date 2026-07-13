@@ -1,8 +1,28 @@
+import { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Leaf, Facebook, Twitter, Instagram, Mail, Phone, MapPin, MessageCircle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FARM_NAME, FARM_TAGLINE, FARM_LOCATION, FARM_WHATSAPP, FARM_EMAIL } from '../constants';
 
 export default function Footer() {
+  const [logoSettings, setLogoSettings] = useState<{ footerLogoUrl?: string; footerLogoHeight?: number }>({});
+
+  useEffect(() => {
+    const unsubLogo = onSnapshot(doc(db, 'settings', 'site'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.logo) {
+          setLogoSettings({
+            footerLogoUrl: data.logo.footerLogoUrl,
+            footerLogoHeight: data.logo.footerLogoHeight
+          });
+        }
+      }
+    });
+    return unsubLogo;
+  }, []);
+
   return (
     <footer className="bg-gray-900 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -17,8 +37,20 @@ export default function Footer() {
               }}
               className="flex items-center space-x-2 text-white"
             >
-              <Leaf className="h-8 w-8 text-green-500" />
-              <span className="text-xl font-bold tracking-tight">{FARM_NAME}</span>
+              {logoSettings.footerLogoUrl ? (
+                <img 
+                  src={logoSettings.footerLogoUrl} 
+                  alt={FARM_NAME} 
+                  style={{ height: `${logoSettings.footerLogoHeight || 32}px`, width: 'auto' }}
+                  className="object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <>
+                  <Leaf className="h-8 w-8 text-green-500" />
+                  <span className="text-xl font-bold tracking-tight">{FARM_NAME}</span>
+                </>
+              )}
             </a>
             <p className="text-sm leading-relaxed">
               {FARM_TAGLINE}. Empowering sustainable farming and connecting investors with high-impact agricultural projects.

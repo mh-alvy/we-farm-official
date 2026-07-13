@@ -4,6 +4,7 @@ import AdminLayout from './components/AdminLayout';
 
 import MainPage from './pages/MainPage';
 import Login from './pages/Login';
+import ProjectDetails from './pages/ProjectDetails';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -28,6 +29,7 @@ export default function App() {
           <Route index element={<MainPage />} />
           <Route path="login" element={<Login />} />
           <Route path="profile" element={<UserProfile />} />
+          <Route path="project/:id" element={<ProjectDetails />} />
         </Route>
 
         {/* Admin Routes */}

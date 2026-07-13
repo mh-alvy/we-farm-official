@@ -125,6 +125,7 @@ export interface Investment {
 
 export interface SiteSettings {
   id?: string;
+  logo?: LogoContent;
   hero: HeroContent;
   featuresSection: FeaturesSectionContent;
   aboutSection: AboutSectionContent;
@@ -134,6 +135,13 @@ export interface SiteSettings {
   investSection: SectionHeaderContent;
   contactSection: ContactSectionContent;
   faqSection: FAQSectionContent;
+}
+
+export interface LogoContent {
+  navLogoUrl?: string;
+  footerLogoUrl?: string;
+  navLogoHeight?: number;
+  footerLogoHeight?: number;
 }
 
 export interface HeroContent {

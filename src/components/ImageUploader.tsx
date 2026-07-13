@@ -83,8 +83,15 @@ export default function ImageUploader({
             }
 
             ctx.drawImage(img, 0, 0, width, height);
-            // Compress as JPEG at 0.7 quality to keep size tiny (<50KB)
-            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            // Preserve transparency for PNG, WebP, SVG, and GIF files; compress others as JPEG
+            let compressed;
+            if (file.type === 'image/png' || file.type === 'image/svg+xml' || file.type === 'image/gif') {
+              compressed = canvas.toDataURL('image/png');
+            } else if (file.type === 'image/webp') {
+              compressed = canvas.toDataURL('image/webp', 0.8);
+            } else {
+              compressed = canvas.toDataURL('image/jpeg', 0.7);
+            }
             resolve(compressed);
           };
           img.onerror = () => {
