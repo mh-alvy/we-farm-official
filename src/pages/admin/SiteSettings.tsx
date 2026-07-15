@@ -17,9 +17,13 @@ const DEFAULT_SETTINGS: SiteSettings = {
   hero: {
     tagline: 'SOIL TO SOUL',
     title: 'Fresh Farm Products From Our Farm',
+    titles: ['Fresh Farm Products From Our Farm', 'Honest Food from Honest Soil', 'Experience Regenerative Agriculture'],
+    titleInterval: 5000,
     description: 'Rooted in the philosophy of Soil to Soul. We practice regenerative farming to bring you meat and dairy that nourishes the body and respects the earth.',
     images: ['https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&q=80&w=1200'],
-    useScrollEffect: true
+    useScrollEffect: true,
+    bgImageUrl: '',
+    bgImageOpacity: 40
   },
   featuresSection: {
     tagline: 'WHY CHOOSE US',
@@ -166,11 +170,112 @@ export default function AdminSiteSettings() {
     fetchSettings();
   }, []);
 
+  const compressBase64IfNeeded = async (
+    base64Str: string, 
+    maxWidth = 640, 
+    maxHeight = 480, 
+    quality = 0.5,
+    forceJpeg = false
+  ): Promise<string> => {
+    if (!base64Str || !base64Str.startsWith('data:image/')) {
+      return base64Str;
+    }
+    
+    // Skip if already very small (e.g. less than ~50KB / 70000 characters)
+    if (base64Str.length < 70000) {
+      return base64Str;
+    }
+    
+    return new Promise<string>((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(base64Str);
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        let compressed;
+        const isPng = base64Str.startsWith('data:image/png');
+        if (isPng && !forceJpeg) {
+          compressed = canvas.toDataURL('image/png');
+        } else {
+          compressed = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        if (compressed.length < base64Str.length) {
+          resolve(compressed);
+        } else {
+          resolve(base64Str);
+        }
+      };
+      img.onerror = () => {
+        resolve(base64Str);
+      };
+    });
+  };
+
+  const compressSettingsImages = async (s: SiteSettings): Promise<SiteSettings> => {
+    const cloned = JSON.parse(JSON.stringify(s)) as SiteSettings;
+    
+    if (cloned.logo?.navLogoUrl) {
+      const isPng = cloned.logo.navLogoUrl.startsWith('data:image/png');
+      cloned.logo.navLogoUrl = await compressBase64IfNeeded(cloned.logo.navLogoUrl, 240, 240, isPng ? 1.0 : 0.6);
+    }
+    if (cloned.logo?.footerLogoUrl) {
+      const isPng = cloned.logo.footerLogoUrl.startsWith('data:image/png');
+      cloned.logo.footerLogoUrl = await compressBase64IfNeeded(cloned.logo.footerLogoUrl, 240, 240, isPng ? 1.0 : 0.6);
+    }
+    
+    if (cloned.hero?.images && cloned.hero.images.length > 0) {
+      cloned.hero.images = await Promise.all(
+        cloned.hero.images.map(img => compressBase64IfNeeded(img, 640, 480, 0.55, true))
+      );
+    }
+    
+    if (cloned.hero?.bgImageUrl) {
+      cloned.hero.bgImageUrl = await compressBase64IfNeeded(cloned.hero.bgImageUrl, 640, 480, 0.55, true);
+    }
+    
+    if (cloned.aboutSection?.imageUrl) {
+      cloned.aboutSection.imageUrl = await compressBase64IfNeeded(cloned.aboutSection.imageUrl, 640, 480, 0.55, true);
+    }
+    
+    if (cloned.aboutUsSection?.promise?.imageUrl) {
+      cloned.aboutUsSection.promise.imageUrl = await compressBase64IfNeeded(cloned.aboutUsSection.promise.imageUrl, 640, 480, 0.55, true);
+    }
+    
+    return cloned;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setActionMessage(null);
     try {
-      await setDoc(doc(db, 'settings', 'site'), settings);
+      const optimizedSettings = await compressSettingsImages(settings);
+      await setDoc(doc(db, 'settings', 'site'), optimizedSettings);
+      setSettings(optimizedSettings);
       setActionMessage({ type: 'success', text: 'Site settings updated successfully!' });
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -484,6 +589,94 @@ export default function AdminSiteSettings() {
                 </span>
               </button>
             </div>
+
+            {settings.hero.useScrollEffect === false && (
+              <div className="mt-6 p-6 bg-amber-50/40 rounded-2xl border border-amber-100/50 space-y-4 animate-fade-in">
+                <label className="block text-[10px] font-bold text-amber-800 uppercase tracking-widest flex items-center space-x-2">
+                  <ImageIcon className="h-4 w-4" />
+                  <span>Hero Section Background Photo (Scroll Effect is Off)</span>
+                </label>
+                <p className="text-xs text-gray-500">
+                  This photo will be shown as the full-bleed background of the entire hero section on the home page, darkened with low transparency for a darker tone and high text readability.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                  <ImageUploader 
+                    label="Upload Hero Background Photo" 
+                    onUploadSuccess={(url) => {
+                      setSettings({
+                        ...settings,
+                        hero: {
+                          ...settings.hero,
+                          bgImageUrl: url
+                        }
+                      });
+                    }}
+                    folder="hero_bg"
+                  />
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or paste Background Image URL</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="https://images.unsplash.com/..."
+                        value={settings.hero.bgImageUrl || ''}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          hero: {
+                            ...settings.hero,
+                            bgImageUrl: e.target.value
+                          }
+                        })}
+                        className="flex-grow px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs"
+                      />
+                      {settings.hero.bgImageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setSettings({
+                            ...settings,
+                            hero: {
+                              ...settings.hero,
+                              bgImageUrl: ''
+                            }
+                          })}
+                          className="px-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {settings.hero.bgImageUrl && (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        Background Image Opacity: {settings.hero.bgImageOpacity ?? 40}% (low transparency)
+                      </label>
+                      <span className="text-xs text-gray-400">
+                        Higher % = darker/more visible photo, Lower % = lighter/more subtle.
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="90"
+                      value={settings.hero.bgImageOpacity ?? 40}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        hero: {
+                          ...settings.hero,
+                          bgImageOpacity: parseInt(e.target.value)
+                        }
+                      })}
+                      className="w-full accent-green-700 cursor-pointer h-1 bg-gray-200 rounded-lg appearance-none"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <hr className="border-gray-100" />
@@ -510,17 +703,126 @@ export default function AdminSiteSettings() {
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center space-x-2">
                   <Type className="h-3 w-3" />
-                  <span>Main Heading</span>
+                  <span>Main Heading (Primary / Fallback)</span>
                 </label>
                 <textarea
                   value={settings.hero.title}
                   rows={2}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    hero: { ...settings.hero, title: e.target.value }
-                  })}
+                  onChange={(e) => {
+                    const newTitle = e.target.value;
+                    const titlesList = settings.hero.titles || [];
+                    const updatedTitles = [...titlesList];
+                    if (updatedTitles.length > 0) {
+                      updatedTitles[0] = newTitle;
+                    } else {
+                      updatedTitles.push(newTitle);
+                    }
+                    setSettings({
+                      ...settings,
+                      hero: { 
+                        ...settings.hero, 
+                        title: newTitle,
+                        titles: updatedTitles
+                      }
+                    });
+                  }}
                   className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold text-lg"
                 />
+              </div>
+
+              {/* Multiple Rotating Headings */}
+              <div className="space-y-3 pt-2">
+                <div className="flex justify-between items-center">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-2">
+                    <Plus className="h-3 w-3 text-green-600" />
+                    <span>Rotating Headings (Typewriter Cycles)</span>
+                  </label>
+                  <span className="text-[9px] text-gray-400 font-medium">Auto-rotates sequentially</span>
+                </div>
+                
+                <div className="space-y-2">
+                  {(settings.hero.titles || [settings.hero.title]).map((t, idx) => (
+                    <div key={idx} className="flex items-center space-x-2">
+                      <span className="text-[10px] font-bold text-gray-400 w-6">#{idx + 1}</span>
+                      <input
+                        type="text"
+                        value={t}
+                        onChange={(e) => {
+                          const updatedTitles = [...(settings.hero.titles || [settings.hero.title])];
+                          updatedTitles[idx] = e.target.value;
+                          setSettings({
+                            ...settings,
+                            hero: {
+                              ...settings.hero,
+                              titles: updatedTitles,
+                              title: idx === 0 ? e.target.value : settings.hero.title
+                            }
+                          });
+                        }}
+                        placeholder={`Heading #${idx + 1}`}
+                        className="flex-grow px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-xs font-semibold"
+                      />
+                      {(settings.hero.titles || []).length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedTitles = (settings.hero.titles || []).filter((_, i) => i !== idx);
+                            setSettings({
+                              ...settings,
+                              hero: {
+                                ...settings.hero,
+                                titles: updatedTitles,
+                                title: updatedTitles[0] || ''
+                              }
+                            });
+                          }}
+                          className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updatedTitles = [...(settings.hero.titles || [settings.hero.title]), ''];
+                    setSettings({
+                      ...settings,
+                      hero: {
+                        ...settings.hero,
+                        titles: updatedTitles
+                      }
+                    });
+                  }}
+                  className="w-full py-2 border-2 border-dashed border-gray-100 rounded-xl text-gray-400 hover:border-green-200 hover:text-green-600 transition-all text-[10px] font-bold flex items-center justify-center space-x-1 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Rotating Heading</span>
+                </button>
+
+                <div className="pt-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    Heading Display Interval: {((settings.hero.titleInterval || 5000) / 1000).toFixed(1)} seconds
+                  </label>
+                  <input
+                    type="range"
+                    min="2000"
+                    max="10000"
+                    step="500"
+                    value={settings.hero.titleInterval || 5000}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      hero: {
+                        ...settings.hero,
+                        titleInterval: parseInt(e.target.value, 10)
+                      }
+                    })}
+                    className="w-full accent-green-600 cursor-pointer h-1 bg-gray-200 rounded-lg appearance-none"
+                  />
+                </div>
               </div>
             </div>
 

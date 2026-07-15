@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { SiteSettings } from '../types';
+import TypingText from '../components/TypingText';
 
 const IconMap: { [key: string]: any } = {
   Leaf,
@@ -282,17 +283,39 @@ export default function Home() {
         </div>
       ) : (
         /* Normal Hero Section (Classic Slider like before) */
-        <div className="relative min-h-[75vh] md:min-h-[85vh] flex items-center bg-[#FDFCF7] overflow-hidden pt-4 md:pt-6">
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#1A2E26_1px,transparent_1px)] [background-size:16px_16px]" />
+        <div className={cn(
+          "relative min-h-[75vh] md:min-h-[85vh] flex items-center overflow-hidden pt-4 md:pt-6 transition-colors duration-300",
+          settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl ? "bg-[#11221A]" : "bg-[#FDFCF7]"
+        )}>
+          {/* Background image option when scroll effect is off and bgImageUrl is present */}
+          {settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl && (
+            <div className="absolute inset-0 z-0">
+              <img 
+                src={settings.hero.bgImageUrl} 
+                alt="Hero Background" 
+                className="w-full h-full object-cover"
+                style={{ opacity: (settings.hero.bgImageOpacity ?? 40) / 100 }}
+                referrerPolicy="no-referrer"
+              />
+              {/* Dark overlay for a darker tone and high readability */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/45 mix-blend-multiply" />
+              <div className="absolute inset-0 bg-[#11221A]/30" />
+            </div>
+          )}
+
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#1A2E26_1px,transparent_1px)] [background-size:16px_16px] z-0" />
           
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 w-full relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               {/* Left Column: Text Content */}
-              <div className="lg:col-span-7 space-y-8 text-left">
+              <div className="lg:col-span-7 space-y-8 text-left relative z-10">
                 <motion.span 
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-xs font-bold tracking-[0.2em] text-[#8B735B] uppercase block"
+                  className={cn(
+                    "text-xs font-bold tracking-[0.2em] uppercase block",
+                    settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl ? "text-amber-300" : "text-[#8B735B]"
+                  )}
                 >
                   {settings?.hero?.tagline || "SOIL TO SOUL"}
                 </motion.span>
@@ -301,16 +324,28 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-[#1A2E26] leading-[1.1] tracking-tight"
+                  className={cn(
+                    "text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.1] tracking-tight min-h-[2.2em] sm:min-h-[2.2em] md:min-h-[2.2em]",
+                    settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl ? "text-white" : "text-[#1A2E26]"
+                  )}
                 >
-                  {settings?.hero?.title || "Fresh Farm Products From Our Farm"}
+                  <TypingText 
+                    text={settings?.hero?.title || "Fresh Farm Products From Our Farm"} 
+                    texts={settings?.hero?.titles}
+                    interval={settings?.hero?.titleInterval || 4000}
+                    speed={30} 
+                    delay={400} 
+                  />
                 </motion.h1>
                 
                 <motion.p 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="text-lg text-gray-600 max-w-2xl leading-relaxed"
+                  className={cn(
+                    "text-lg max-w-2xl leading-relaxed",
+                    settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl ? "text-gray-200" : "text-gray-600"
+                  )}
                 >
                   {settings?.hero?.description || "Rooted in the philosophy of Soil to Soul. We practice regenerative farming to bring you meat and dairy that nourishes the body and respects the earth."}
                 </motion.p>
@@ -327,7 +362,12 @@ export default function Home() {
                       e.preventDefault();
                       document.getElementById('invest')?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="bg-[#1A2E26] hover:bg-[#254236] text-white px-8 py-4 rounded-full font-bold text-lg transition-all text-center shadow-md active:scale-95"
+                    className={cn(
+                      "px-8 py-4 rounded-full font-bold text-lg transition-all text-center shadow-md active:scale-95",
+                      settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl
+                        ? "bg-green-600 hover:bg-green-500 text-white shadow-green-950/40" 
+                        : "bg-[#1A2E26] hover:bg-[#254236] text-white"
+                    )}
                   >
                     Become an Investor
                   </a>
@@ -337,7 +377,12 @@ export default function Home() {
                       e.preventDefault();
                       document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="bg-transparent border-2 border-[#1A2E26]/20 hover:border-[#1A2E26] hover:bg-[#1A2E26]/5 text-[#1A2E26] px-8 py-4 rounded-full font-bold text-lg transition-all text-center active:scale-95"
+                    className={cn(
+                      "px-8 py-4 rounded-full font-bold text-lg transition-all text-center active:scale-95",
+                      settings?.hero?.useScrollEffect === false && settings.hero.bgImageUrl
+                        ? "bg-transparent border-2 border-white/20 hover:border-white hover:bg-white/5 text-white"
+                        : "bg-transparent border-2 border-[#1A2E26]/20 hover:border-[#1A2E26] hover:bg-[#1A2E26]/5 text-[#1A2E26]"
+                    )}
                   >
                     Explore Shop
                   </a>
@@ -345,7 +390,7 @@ export default function Home() {
               </div>
               
               {/* Right Column: Sliding/Rotating Image Gallery */}
-              <div className="lg:col-span-5 relative">
+              <div className="lg:col-span-5 relative z-10">
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}

@@ -147,9 +147,13 @@ export interface LogoContent {
 export interface HeroContent {
   tagline: string;
   title: string;
+  titles?: string[];
+  titleInterval?: number; // interval in ms or seconds
   description: string;
   images: string[];
   useScrollEffect?: boolean;
+  bgImageUrl?: string;
+  bgImageOpacity?: number;
 }
 
 export interface FeaturesSectionContent {

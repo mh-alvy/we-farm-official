@@ -57,8 +57,12 @@ export default function ImageUploader({
           img.src = originalDataUrl;
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800;
-            const MAX_HEIGHT = 600;
+            
+            // Intelligently downscale based on whether it is a logo (branding) or a photograph
+            const isBranding = folder === 'branding';
+            const MAX_WIDTH = isBranding ? 200 : 640;
+            const MAX_HEIGHT = isBranding ? 200 : 480;
+            
             let width = img.width;
             let height = img.height;
 
@@ -83,14 +87,18 @@ export default function ImageUploader({
             }
 
             ctx.drawImage(img, 0, 0, width, height);
-            // Preserve transparency for PNG, WebP, SVG, and GIF files; compress others as JPEG
+            
             let compressed;
-            if (file.type === 'image/png' || file.type === 'image/svg+xml' || file.type === 'image/gif') {
-              compressed = canvas.toDataURL('image/png');
-            } else if (file.type === 'image/webp') {
-              compressed = canvas.toDataURL('image/webp', 0.8);
+            if (isBranding) {
+              // Logos benefit from PNG transparency, and at 200x200 they are extremely lightweight
+              if (file.type === 'image/png' || file.type === 'image/svg+xml' || file.type === 'image/gif') {
+                compressed = canvas.toDataURL('image/png');
+              } else {
+                compressed = canvas.toDataURL('image/jpeg', 0.6);
+              }
             } else {
-              compressed = canvas.toDataURL('image/jpeg', 0.7);
+              // Photographs do not need transparency, so convert them to highly optimized JPEG (0.55 quality is perfect)
+              compressed = canvas.toDataURL('image/jpeg', 0.55);
             }
             resolve(compressed);
           };
