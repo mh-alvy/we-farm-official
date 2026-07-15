@@ -26,7 +26,7 @@ export default function Login() {
       if (user) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const role = userDoc.exists() ? userDoc.data().role : 'investor';
-        navigate(role === 'admin' ? '/admin' : '/', { replace: true });
+        navigate((role === 'admin' || role === 'super_admin') ? '/admin' : '/', { replace: true });
       }
     });
     return () => unsubscribe();
@@ -75,7 +75,7 @@ export default function Login() {
         }
 
         // Create new user profile in Firestore
-        const role = user.email === 'alvymahamudulhasan@gmail.com' ? 'admin' : 'investor';
+        const role: 'super_admin' | 'admin' | 'investor' = user.email === 'alvymahamudulhasan@gmail.com' ? 'super_admin' : 'investor';
         await setDoc(doc(db, 'users', user.uid), {
           ...existingData,
           uid: user.uid,
@@ -90,12 +90,12 @@ export default function Login() {
           await deleteDoc(doc(db, 'users', oldDocId));
         }
 
-        navigate(role === 'admin' ? '/admin' : '/');
+        navigate(((role as string) === 'admin' || role === 'super_admin') ? '/admin' : '/');
       } else {
         const result = await signInWithEmailAndPassword(auth, formData.email, formData.password);
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         const role = userDoc.data()?.role || 'investor';
-        navigate(role === 'admin' ? '/admin' : '/');
+        navigate((role === 'admin' || role === 'super_admin') ? '/admin' : '/');
       }
     } catch (err: any) {
       console.error(err);
@@ -117,7 +117,7 @@ export default function Login() {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       
       if (!userDoc.exists()) {
-        const role = user.email === 'alvymahamudulhasan@gmail.com' ? 'admin' : 'investor';
+        const role: 'super_admin' | 'admin' | 'investor' = user.email === 'alvymahamudulhasan@gmail.com' ? 'super_admin' : 'investor';
         
         // Check if there is an existing pre-created profile under this email
         const usersRef = collection(db, 'users');
@@ -145,10 +145,10 @@ export default function Login() {
           await deleteDoc(doc(db, 'users', oldDocId));
         }
 
-        navigate(role === 'admin' ? '/admin' : '/');
+        navigate(((role as string) === 'admin' || role === 'super_admin') ? '/admin' : '/');
       } else {
         const role = userDoc.data().role;
-        navigate(role === 'admin' ? '/admin' : '/');
+        navigate((role === 'admin' || role === 'super_admin') ? '/admin' : '/');
       }
     } catch (err: any) {
       console.error(err);

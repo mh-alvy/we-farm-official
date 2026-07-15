@@ -233,7 +233,7 @@ export interface UserProfile {
   email: string;
   name: string;
   phone?: string;
-  role: 'admin' | 'investor';
+  role: 'super_admin' | 'admin' | 'investor';
   createdAt: string;
   investorProfile?: {
     // Personal Info
@@ -269,3 +269,41 @@ export interface UserProfile {
     nidFileUrl?: string;
   };
 }
+
+export type AccountCategory = 'Client' | 'Customer' | 'Investor' | 'Owner / Partner' | 'Vendor / Supplier' | 'Employee' | 'Contractor' | 'Other';
+export type TransactionType = 'Receivable' | 'Payable';
+export type AccountStatus = 'Pending' | 'Partially Paid' | 'Fully Settled' | 'Cancelled';
+
+export interface LedgerPayment {
+  id: string;
+  amount: number;
+  date: string;
+  paymentMethod: string;
+  referenceNumber: string;
+  notes: string;
+  processedBy: string;
+}
+
+export interface LedgerAccount {
+  id?: string;
+  transactionId: string;
+  personName: string;
+  category: AccountCategory;
+  contactNumber: string;
+  email?: string;
+  address?: string;
+  transactionType: TransactionType;
+  amount: number;
+  currency: string;
+  dueDate: string;
+  description: string;
+  referenceNumber: string;
+  attachmentUrl?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  currentStatus: AccountStatus;
+  isArchived: boolean;
+  payments: LedgerPayment[];
+}
+

@@ -130,7 +130,7 @@ export default function Navbar({ isBarActive }: NavbarProps) {
                   <User className="h-4 w-4 mr-1" />
                   Profile
                 </Link>
-                {role === 'admin' && (
+                {(role === 'admin' || role === 'super_admin') && (
                   <Link
                     to="/admin"
                     className="text-sm font-medium text-white bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -195,7 +195,7 @@ export default function Navbar({ isBarActive }: NavbarProps) {
                 >
                   My Profile
                 </Link>
-                {role === 'admin' && (
+                {(role === 'admin' || role === 'super_admin') && (
                   <Link
                     to="/admin"
                     onClick={() => setIsOpen(false)}

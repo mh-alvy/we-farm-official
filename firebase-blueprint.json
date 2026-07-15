@@ -333,6 +333,48 @@
         "description": { "type": "string" }
       },
       "required": ["cowId", "date", "vaccineName"]
+    },
+    "accounts": {
+      "title": "Ledger Account",
+      "description": "Accounts Receivable and Payable",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string" },
+        "personName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Client", "Customer", "Investor", "Owner / Partner", "Vendor / Supplier", "Employee", "Contractor", "Other"] },
+        "contactNumber": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "transactionType": { "type": "string", "enum": ["Receivable", "Payable"] },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "referenceNumber": { "type": "string" },
+        "attachmentUrl": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "currentStatus": { "type": "string", "enum": ["Pending", "Partially Paid", "Fully Settled", "Cancelled"] },
+        "isArchived": { "type": "boolean" },
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "amount": { "type": "number" },
+              "date": { "type": "string", "format": "date" },
+              "paymentMethod": { "type": "string" },
+              "referenceNumber": { "type": "string" },
+              "notes": { "type": "string" },
+              "processedBy": { "type": "string" }
+            },
+            "required": ["id", "amount", "date", "paymentMethod", "processedBy"]
+          }
+        }
+      },
+      "required": ["transactionId", "personName", "category", "contactNumber", "transactionType", "amount", "dueDate", "createdBy", "createdAt", "updatedAt", "currentStatus"]
     }
   },
   "firestore": {
@@ -347,6 +389,7 @@
     "/settings/{settingId}": { "schema": "settings", "description": "Site configuration" },
     "/milkLogs/{logId}": { "schema": "milkLogs", "description": "Milk records" },
     "/weightLogs/{weightId}": { "schema": "weightLogs", "description": "Weight records" },
-    "/vaccinationLogs/{vaccId}": { "schema": "vaccinationLogs", "description": "Vaccination records" }
+    "/vaccinationLogs/{vaccId}": { "schema": "vaccinationLogs", "description": "Vaccination records" },
+    "/accounts/{accountId}": { "schema": "accounts", "description": "Ledger Accounts Receivable & Payable" }
   }
 }

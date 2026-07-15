@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, limit } from 'firebase/firestore';
 import { User, Mail, Phone, Calendar, Download, Search, UserCheck, Shield, ChevronRight, Printer, FileText, UserPlus, ShieldAlert, CheckCircle2, FileType, ExternalLink } from 'lucide-react';
 import { UserProfile } from '../../types';
@@ -11,12 +11,29 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: 'investor' | 'admin' | 'super_admin' } | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) return;
+
+    const userDocRef = doc(db, 'users', currentUid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setCurrentUserRole(docSnap.data().role || null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const isSuperAdmin = currentUserRole === 'super_admin' || auth.currentUser?.email === 'alvymahamudulhasan@gmail.com';
 
   useEffect(() => {
     // Limit to 100 recent users to avoid slow loading with large datasets
     const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile));
+      const usersData = snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile));
       setUsers(usersData);
       
       // Update selected user info if they were updated in real-time
@@ -30,19 +47,37 @@ export default function AdminUsers() {
     return () => unsubscribe();
   }, [selectedUser?.uid]);
 
-  const toggleAdminRole = async (targetUser: UserProfile) => {
-    if (!window.confirm(`Are you sure you want to change ${targetUser.name}'s role to ${targetUser.role === 'admin' ? 'Investor' : 'Admin'}?`)) {
+  const changeUserRole = (targetUser: UserProfile, newRole: 'investor' | 'admin' | 'super_admin') => {
+    if (!isSuperAdmin) {
+      setActionMessage({ type: 'error', text: 'Role management is restricted. Only the Super Admin / Developer can perform role management actions.' });
       return;
     }
 
-    setUpdating(targetUser.uid);
+    if (targetUser.email === 'alvymahamudulhasan@gmail.com' && newRole !== 'super_admin') {
+      setActionMessage({ type: 'error', text: 'The Super Admin/Developer account cannot be demoted.' });
+      return;
+    }
+
+    if (targetUser.role === newRole) {
+      setPendingRoleChange(null);
+      return;
+    }
+
+    setPendingRoleChange({ userId: targetUser.uid, role: newRole });
+  };
+
+  const confirmRoleChange = async () => {
+    if (!pendingRoleChange || !selectedUser) return;
+
+    const { userId, role } = pendingRoleChange;
+    setPendingRoleChange(null);
+    setUpdating(userId);
     setActionMessage(null);
     try {
-      const newRole = targetUser.role === 'admin' ? 'investor' : 'admin';
-      await updateDoc(doc(db, 'users', targetUser.uid), {
-        role: newRole
+      await updateDoc(doc(db, 'users', userId), {
+        role: role
       });
-      setActionMessage({ type: 'success', text: `User role updated to ${newRole} successfully.` });
+      setActionMessage({ type: 'success', text: `User role updated to ${role} successfully.` });
     } catch (err) {
       console.error(err);
       setActionMessage({ type: 'error', text: 'Failed to update user role.' });
@@ -206,7 +241,10 @@ export default function AdminUsers() {
                     <tr 
                       key={user.uid || `user-${index}`} 
                       className={`hover:bg-gray-50 transition-colors cursor-pointer ${selectedUser?.uid === user.uid ? 'bg-green-50' : ''}`}
-                      onClick={() => setSelectedUser(user)}
+                      onClick={() => {
+                        setPendingRoleChange(null);
+                        setSelectedUser(user);
+                      }}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
@@ -235,9 +273,10 @@ export default function AdminUsers() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                          user.role === 'super_admin' ? 'bg-purple-50 text-purple-600' :
                           user.role === 'admin' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600'
                         }`}>
-                          {user.role}
+                          {user.role === 'super_admin' ? 'super admin' : user.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">
@@ -368,36 +407,66 @@ export default function AdminUsers() {
                       <span>{actionMessage.text}</span>
                     </div>
                   )}
-                  <button 
-                    onClick={() => toggleAdminRole(selectedUser)}
-                    disabled={!!updating}
-                    className={`w-full flex items-center justify-center space-x-2 py-3 rounded-xl font-bold transition-all border ${
-                      selectedUser.role === 'admin' 
-                        ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' 
-                        : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100'
-                    }`}
-                  >
-                    {updating === selectedUser.uid ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                    ) : (
-                      <>
-                        {selectedUser.role === 'admin' ? (
-                          <>
-                            <ShieldAlert className="h-4 w-4" />
-                            <span>Demote to Investor</span>
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="h-4 w-4" />
-                            <span>Promote to Admin</span>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </button>
-                  <p className="mt-2 text-[10px] text-gray-400 text-center">
-                    Admins have full access to management features.
-                  </p>
+
+                  {isSuperAdmin ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['investor', 'admin', 'super_admin'] as const).map((r) => {
+                          const isCurrent = selectedUser.role === r;
+                          return (
+                            <button
+                              key={r}
+                              disabled={updating === selectedUser.uid || (selectedUser.email === 'alvymahamudulhasan@gmail.com' && r !== 'super_admin')}
+                              onClick={() => changeUserRole(selectedUser, r)}
+                              className={`py-2 px-1 rounded-xl text-[10px] font-bold transition-all border text-center flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                                isCurrent
+                                  ? r === 'super_admin'
+                                    ? 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-100'
+                                    : r === 'admin'
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100'
+                                    : 'bg-green-600 text-white border-green-600 shadow-sm shadow-green-100'
+                                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <span>{r === 'super_admin' ? 'Super' : r === 'admin' ? 'Admin' : 'Investor'}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {pendingRoleChange && pendingRoleChange.userId === selectedUser.uid && (
+                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2 text-center">
+                          <p className="text-[11px] text-amber-800 font-bold">
+                            Change {selectedUser.name || 'this user'}'s role to {pendingRoleChange.role.toUpperCase()}?
+                          </p>
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              onClick={() => confirmRoleChange()}
+                              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-sm cursor-pointer"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setPendingRoleChange(null)}
+                              className="px-3 py-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-[10px] text-green-600 font-bold text-center mt-2">
+                        ✓ Signed in as Super Admin. You have full permission to promote or demote roles.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50/60 border border-amber-100 p-4 rounded-2xl">
+                      <p className="text-xs text-amber-800 font-semibold text-center">
+                        Role management is restricted. Only Super Admins can change user privileges.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-6 border-t border-gray-100 flex gap-3">

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, addDoc, updateDoc } from 'firebase/firestore';
-import { Project, Investment } from '../types';
-import { motion } from 'motion/react';
+import { Project, Investment, UserProfile } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowLeft, 
   TrendingUp, 
@@ -23,7 +23,10 @@ import {
   DollarSign, 
   Users, 
   Clock, 
-  Sparkles 
+  Sparkles,
+  X,
+  Upload,
+  FileType
 } from 'lucide-react';
 import { formatCurrency, cn } from '../lib/utils';
 import { FARM_NAME } from '../constants';
@@ -38,6 +41,13 @@ export default function ProjectDetails() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const [showKycModal, setShowKycModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileTab, setProfileTab] = useState<'personal' | 'contact' | 'bank' | 'nominee'>('personal');
+  const [uploadingFile, setUploadingFile] = useState<'nid' | 'nomineeNid' | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Calculator states
   const [calcAmount, setCalcAmount] = useState('5000');
@@ -70,6 +80,78 @@ export default function ProjectDetails() {
     fetchProject();
   }, [id]);
 
+  const isProfileComplete = (profile: UserProfile | null) => {
+    if (!profile) return false;
+    const ip = profile.investorProfile;
+    if (!ip) return false;
+    
+    const requiredFields = [
+      'fatherName',
+      'motherName',
+      'dob',
+      'gender',
+      'nidPassport',
+      'nidFileUrl',
+      'currentAddress',
+      'permanentAddress',
+      'occupation',
+      'organization',
+      'designation',
+      'bankName',
+      'branchName',
+      'accountName',
+      'accountNumber',
+      'routingNumber',
+      'nomineeName',
+      'nomineeRelation',
+      'nomineePhone',
+      'nomineeNid',
+      'nomineeNidFileUrl'
+    ];
+
+    return requiredFields.every(field => {
+      const val = (ip as any)[field];
+      return val && String(val).trim() !== '';
+    });
+  };
+
+  const saveInvestment = async (amount: number, finalProfile: UserProfile) => {
+    if (!auth.currentUser || !project) return;
+    
+    try {
+      const investment: Investment = {
+        investorName: finalProfile.name || auth.currentUser.displayName || 'Anonymous',
+        investorEmail: finalProfile.email || auth.currentUser.email || '',
+        projectId: project.id!,
+        projectTitle: project.title,
+        amount: amount,
+        date: new Date().toISOString()
+      };
+
+      // Add to investments collection
+      await addDoc(collection(db, 'investments'), investment);
+
+      // Update currentAmount on the project
+      const newAmount = (project.currentAmount || 0) + amount;
+      await updateDoc(doc(db, 'projects', project.id!), {
+        currentAmount: newAmount
+      });
+
+      // Update local state
+      setProject(prev => prev ? { ...prev, currentAmount: newAmount } : null);
+
+      setSuccess(true);
+      setShowKycModal(false);
+      setTimeout(() => {
+        setSuccess(false);
+        setInvestmentAmount('');
+      }, 3000);
+    } catch (err) {
+      console.error(err);
+      alert('বিনিয়োগ সম্পন্ন করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    }
+  };
+
   const handleInvest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) {
@@ -85,37 +167,176 @@ export default function ProjectDetails() {
       return;
     }
 
-    setSubmitting(true);
+    setProfileLoading(true);
+    setFormError(null);
     try {
-      const investment: Investment = {
-        investorName: auth.currentUser.displayName || 'Anonymous',
-        investorEmail: auth.currentUser.email || '',
-        projectId: project.id!,
-        projectTitle: project.title,
-        amount: amountNum,
-        date: new Date().toISOString()
-      };
-
-      // Add to investments collection
-      await addDoc(collection(db, 'investments'), investment);
-
-      // Update currentAmount on the project
-      const newAmount = (project.currentAmount || 0) + amountNum;
-      await updateDoc(doc(db, 'projects', project.id!), {
-        currentAmount: newAmount
-      });
-
-      // Update local state
-      setProject(prev => prev ? { ...prev, currentAmount: newAmount } : null);
-
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setInvestmentAmount('');
-      }, 3000);
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      const docSnap = await getDoc(userDocRef);
+      if (docSnap.exists()) {
+        const profileData = docSnap.data() as UserProfile;
+        setUserProfile(profileData);
+        
+        // Check if profile is complete
+        if (isProfileComplete(profileData)) {
+          setSubmitting(true);
+          await saveInvestment(amountNum, profileData);
+        } else {
+          // If investorProfile object doesn't exist, initialize it as empty object
+          if (!profileData.investorProfile) {
+            profileData.investorProfile = {};
+          }
+          setUserProfile(profileData);
+          setShowKycModal(true);
+          setProfileTab('personal');
+        }
+      } else {
+        const initialProfile: UserProfile = {
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email || '',
+          name: auth.currentUser.displayName || '',
+          role: 'investor',
+          createdAt: new Date().toISOString(),
+          investorProfile: {}
+        };
+        setUserProfile(initialProfile);
+        setShowKycModal(true);
+        setProfileTab('personal');
+      }
     } catch (err) {
       console.error(err);
       alert('বিনিয়োগ সম্পন্ন করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    } finally {
+      setProfileLoading(false);
+      setSubmitting(false);
+    }
+  };
+
+  const handleModalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'nidFileUrl' | 'nomineeNidFileUrl') => {
+    if (!e.target.files || !e.target.files[0] || !userProfile) return;
+    
+    const file = e.target.files[0];
+    const fileType = field === 'nidFileUrl' ? 'nid' : 'nomineeNid';
+    setUploadingFile(fileType);
+    setFormError(null);
+    
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const originalDataUrl = event.target?.result as string;
+          if (file.type.startsWith('image/')) {
+            const img = new Image();
+            img.src = originalDataUrl;
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 800;
+              const MAX_HEIGHT = 600;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) {
+                resolve(originalDataUrl);
+                return;
+              }
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.onerror = () => {
+              resolve(originalDataUrl);
+            };
+          } else {
+            resolve(originalDataUrl);
+          }
+        };
+        reader.onerror = (err) => {
+          reject(err);
+        };
+      });
+
+      setUserProfile({
+        ...userProfile,
+        investorProfile: {
+          ...userProfile.investorProfile,
+          [field]: dataUrl
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      setFormError('Failed to upload file.');
+    } finally {
+      setUploadingFile(null);
+    }
+  };
+
+  const handleSaveProfileAndInvest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser || !userProfile || !project) return;
+
+    setFormError(null);
+
+    const ip = userProfile.investorProfile || {};
+    
+    const fieldsWithLabels = [
+      { key: 'fatherName', label: "Father's Name", tab: 'personal' },
+      { key: 'motherName', label: "Mother's Name", tab: 'personal' },
+      { key: 'dob', label: "Date of Birth", tab: 'personal' },
+      { key: 'gender', label: "Gender", tab: 'personal' },
+      { key: 'nidPassport', label: "NID/Passport Number", tab: 'personal' },
+      { key: 'nidFileUrl', label: "NID Card Attachment", tab: 'personal' },
+      { key: 'currentAddress', label: "Current Address", tab: 'contact' },
+      { key: 'permanentAddress', label: "Permanent Address", tab: 'contact' },
+      { key: 'occupation', label: "Occupation", tab: 'contact' },
+      { key: 'organization', label: "Organization", tab: 'contact' },
+      { key: 'designation', label: "Designation", tab: 'contact' },
+      { key: 'bankName', label: "Bank Name", tab: 'bank' },
+      { key: 'branchName', label: "Branch Name", tab: 'bank' },
+      { key: 'accountName', label: "Account Name", tab: 'bank' },
+      { key: 'accountNumber', label: "Account Number", tab: 'bank' },
+      { key: 'routingNumber', label: "Routing Number", tab: 'bank' },
+      { key: 'nomineeName', label: "Nominee Name", tab: 'nominee' },
+      { key: 'nomineeRelation', label: "Relation with Nominee", tab: 'nominee' },
+      { key: 'nomineePhone', label: "Nominee Phone Number", tab: 'nominee' },
+      { key: 'nomineeNid', label: "Nominee NID", tab: 'nominee' },
+      { key: 'nomineeNidFileUrl', label: "Nominee NID Attachment", tab: 'nominee' }
+    ];
+
+    const missing = fieldsWithLabels.find(f => {
+      const val = (ip as any)[f.key];
+      return !val || String(val).trim() === '';
+    });
+
+    if (missing) {
+      setFormError(`Please fill in "${missing.label}" (located in the ${missing.tab.toUpperCase()} tab).`);
+      setProfileTab(missing.tab as any);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      const { uid, ...dataToSave } = userProfile;
+      await updateDoc(userDocRef, dataToSave as any);
+
+      await saveInvestment(parseFloat(investmentAmount), userProfile);
+    } catch (err) {
+      console.error(err);
+      setFormError('Failed to save profile and submit investment.');
     } finally {
       setSubmitting(false);
     }
@@ -530,6 +751,476 @@ export default function ProjectDetails() {
 
         </div>
       </div>
+
+      {/* KycModal overlay */}
+      <AnimatePresence>
+        {showKycModal && userProfile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-3xl p-8 overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="flex justify-between items-start mb-6 flex-shrink-0">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#1A2E26]">Investor KYC Verification</h2>
+                  <p className="text-xs text-amber-600 mt-1 font-medium">Please complete all parts of your Investor Profile before proceeding.</p>
+                </div>
+                <button 
+                  onClick={() => setShowKycModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Form Error Notice */}
+              {formError && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-100 text-red-700 text-xs rounded-2xl font-medium flex-shrink-0">
+                  {formError}
+                </div>
+              )}
+
+              {/* Multi-Section Tabs */}
+              <div className="flex border-b border-gray-100 mb-6 space-x-2 overflow-x-auto pb-1 scrollbar-none flex-shrink-0">
+                {(['personal', 'contact', 'bank', 'nominee'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setProfileTab(tab)}
+                    className={cn(
+                      "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all whitespace-nowrap cursor-pointer",
+                      profileTab === tab 
+                        ? "bg-[#1A2E26] text-white" 
+                        : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+                    )}
+                  >
+                    {tab === 'personal' && '1. Personal Details'}
+                    {tab === 'contact' && '2. Address & Job'}
+                    {tab === 'bank' && '3. Bank Account'}
+                    {tab === 'nominee' && '4. Nominee Details'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Scrollable Form Body */}
+              <form onSubmit={handleSaveProfileAndInvest} className="flex-grow overflow-y-auto pr-2 mb-6 space-y-6 max-h-[50vh]">
+                {profileTab === 'personal' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Father's Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.fatherName || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, fatherName: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Mother's Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.motherName || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, motherName: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Date of Birth</label>
+                        <input
+                          type="date"
+                          required
+                          value={userProfile.investorProfile?.dob || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, dob: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Gender</label>
+                        <select
+                          required
+                          value={userProfile.investorProfile?.gender || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, gender: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">NID / Passport Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.nidPassport || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, nidPassport: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">NID Card Attachment</label>
+                        <div className="flex items-center space-x-2">
+                          <label className="flex-1 cursor-pointer">
+                            <div className={cn(
+                              "flex items-center justify-center space-x-1 px-4 py-2.5 rounded-xl border-2 border-dashed text-xs font-bold uppercase tracking-wider transition-all",
+                              uploadingFile === 'nid' ? 'bg-gray-100 border-gray-300' :
+                              userProfile.investorProfile?.nidFileUrl ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-green-400'
+                            )}>
+                              {uploadingFile === 'nid' ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                              ) : userProfile.investorProfile?.nidFileUrl ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
+                              <span>{uploadingFile === 'nid' ? 'Uploading...' : userProfile.investorProfile?.nidFileUrl ? 'Change NID' : 'Upload NID'}</span>
+                            </div>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleModalFileUpload(e, 'nidFileUrl')}
+                              disabled={!!uploadingFile}
+                            />
+                          </label>
+                          {userProfile.investorProfile?.nidFileUrl && (
+                            <a
+                              href={userProfile.investorProfile.nidFileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2.5 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-all flex items-center justify-center"
+                              title="View NID Card"
+                            >
+                              <FileType className="h-4 w-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {profileTab === 'contact' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Current Address</label>
+                        <textarea
+                          rows={2}
+                          required
+                          value={userProfile.investorProfile?.currentAddress || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, currentAddress: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium resize-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Permanent Address</label>
+                        <textarea
+                          rows={2}
+                          required
+                          value={userProfile.investorProfile?.permanentAddress || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, permanentAddress: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Occupation</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.occupation || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, occupation: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Organization</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.organization || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, organization: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Designation</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.designation || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, designation: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {profileTab === 'bank' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Bank Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.bankName || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, bankName: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Branch Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.branchName || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, branchName: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Account Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.accountName || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, accountName: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Account Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.accountNumber || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, accountNumber: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Routing Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.routingNumber || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, routingNumber: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {profileTab === 'nominee' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Nominee Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.nomineeName || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, nomineeName: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Relation</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.nomineeRelation || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, nomineeRelation: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Phone</label>
+                        <input
+                          type="tel"
+                          required
+                          value={userProfile.investorProfile?.nomineePhone || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, nomineePhone: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">NID</label>
+                        <input
+                          type="text"
+                          required
+                          value={userProfile.investorProfile?.nomineeNid || ''}
+                          onChange={(e) => setUserProfile({
+                            ...userProfile,
+                            investorProfile: { ...userProfile.investorProfile, nomineeNid: e.target.value }
+                          })}
+                          className="w-full px-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase">Nominee NID Attachment</label>
+                      <div className="flex items-center space-x-2">
+                        <label className="flex-1 cursor-pointer">
+                          <div className={cn(
+                            "flex items-center justify-center space-x-1 px-4 py-2.5 rounded-xl border-2 border-dashed text-xs font-bold uppercase tracking-wider transition-all",
+                            uploadingFile === 'nomineeNid' ? 'bg-gray-100 border-gray-300' :
+                            userProfile.investorProfile?.nomineeNidFileUrl ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-green-400'
+                          )}>
+                            {uploadingFile === 'nomineeNid' ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                            ) : userProfile.investorProfile?.nomineeNidFileUrl ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                            <span>{uploadingFile === 'nomineeNid' ? 'Uploading...' : userProfile.investorProfile?.nomineeNidFileUrl ? 'Change Nominee NID' : 'Upload Nominee NID'}</span>
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleModalFileUpload(e, 'nomineeNidFileUrl')}
+                            disabled={!!uploadingFile}
+                          />
+                        </label>
+                        {userProfile.investorProfile?.nomineeNidFileUrl && (
+                          <a
+                            href={userProfile.investorProfile.nomineeNidFileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2.5 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-all flex items-center justify-center"
+                            title="View Nominee NID"
+                          >
+                            <FileType className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons inside the scroll view */}
+                <div className="flex items-center space-x-3 pt-4 border-t border-gray-100 flex-shrink-0">
+                  {profileTab !== 'personal' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (profileTab === 'contact') setProfileTab('personal');
+                        else if (profileTab === 'bank') setProfileTab('contact');
+                        else if (profileTab === 'nominee') setProfileTab('bank');
+                      }}
+                      className="px-6 py-4 bg-gray-50 hover:bg-gray-100 text-gray-500 font-bold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {profileTab !== 'nominee' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (profileTab === 'personal') setProfileTab('contact');
+                        else if (profileTab === 'contact') setProfileTab('bank');
+                        else if (profileTab === 'bank') setProfileTab('nominee');
+                      }}
+                      className="flex-grow bg-[#1A2E26] hover:bg-[#2A3E36] text-white font-bold py-4 rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center"
+                    >
+                      Next Section
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={submitting || !!uploadingFile}
+                      className="flex-grow bg-[#1A2E26] hover:bg-[#2A3E36] text-white font-bold py-4 rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center disabled:opacity-50"
+                    >
+                      {submitting ? 'Registering Details...' : 'Complete Profile & Confirm Investment'}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

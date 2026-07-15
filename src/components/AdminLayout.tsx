@@ -2,7 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import Sidebar from './Sidebar';
 import { Menu } from 'lucide-react';
 
@@ -17,10 +17,25 @@ export default function AdminLayout() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        let currentRole = null;
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
-          setRole(userDoc.data().role);
+          currentRole = userDoc.data().role;
         }
+
+        // Auto promote alvymahamudulhasan@gmail.com to super_admin
+        if (currentUser.email === 'alvymahamudulhasan@gmail.com') {
+          currentRole = 'super_admin';
+          if (userDoc.exists() && userDoc.data().role !== 'super_admin') {
+            try {
+              await updateDoc(doc(db, 'users', currentUser.uid), { role: 'super_admin' });
+            } catch (err) {
+              console.error("Auto promote error: ", err);
+            }
+          }
+        }
+
+        setRole(currentRole);
         setUser(currentUser);
       } else {
         setUser(null);
@@ -39,7 +54,7 @@ export default function AdminLayout() {
     );
   }
 
-  if (!user || role !== 'admin') {
+  if (!user || (role !== 'admin' && role !== 'super_admin')) {
     return <Navigate to="/login" replace />;
   }
 

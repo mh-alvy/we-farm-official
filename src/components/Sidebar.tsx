@@ -11,7 +11,8 @@ import {
   Users,
   Layout,
   X,
-  Moon
+  Moon,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,6 +30,7 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps)
     { name: 'Livestock (Cows)', path: '/admin/cows', icon: Beef },
     { name: 'Users', path: '/admin/users', icon: Users },
     { name: 'Finances', path: '/admin/finances', icon: Wallet },
+    { name: 'Accounts Ledger', path: '/admin/accounts', icon: BookOpen },
     { name: 'Inventory', path: '/admin/inventory', icon: Package },
     { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
     { name: 'Projects', path: '/admin/projects', icon: LayoutDashboard },
