@@ -5,6 +5,7 @@ import { Save, Image as ImageIcon, Plus, X, Layout, Type, Info, CheckCircle2, Sh
 import { SiteSettings } from '../../types';
 import { motion } from 'motion/react';
 import ImageUploader from '../../components/ImageUploader';
+import AdminAICopywriter from '../../components/AdminAICopywriter';
 import { cn } from '../../lib/utils';
 
 const DEFAULT_SETTINGS: SiteSettings = {
@@ -134,6 +135,44 @@ export default function AdminSiteSettings() {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const [aiModalState, setAiModalState] = useState<{
+    isOpen: boolean;
+    type: 'hero_heading' | 'hero_tagline' | 'project_pitch' | 'product_description' | 'about_story' | 'custom';
+    input: string;
+    fieldTarget?: string;
+  }>({
+    isOpen: false,
+    type: 'hero_heading',
+    input: '',
+  });
+
+  const handleApplyAICopy = (selectedText: string) => {
+    if (aiModalState.fieldTarget === 'hero_title') {
+      const updatedTitles = [...(settings.hero.titles || [])];
+      if (updatedTitles.length > 0) updatedTitles[0] = selectedText;
+      else updatedTitles.push(selectedText);
+      setSettings({
+        ...settings,
+        hero: { ...settings.hero, title: selectedText, titles: updatedTitles }
+      });
+    } else if (aiModalState.fieldTarget === 'hero_tagline') {
+      setSettings({
+        ...settings,
+        hero: { ...settings.hero, tagline: selectedText }
+      });
+    } else if (aiModalState.fieldTarget === 'hero_description') {
+      setSettings({
+        ...settings,
+        hero: { ...settings.hero, description: selectedText }
+      });
+    } else if (aiModalState.fieldTarget === 'about_title') {
+      setSettings({
+        ...settings,
+        aboutSection: { ...settings.aboutSection, headline: selectedText }
+      });
+    }
+  };
 
   useEffect(() => {
     async function fetchSettings() {
@@ -685,10 +724,24 @@ export default function AdminSiteSettings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center space-x-2">
-                  <Type className="h-3 w-3" />
-                  <span>Small Tagline</span>
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-2">
+                    <Type className="h-3 w-3" />
+                    <span>Small Tagline</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAiModalState({
+                      isOpen: true,
+                      type: 'hero_tagline',
+                      input: settings.hero.tagline || 'Soil to Soul Regenerative Farm',
+                      fieldTarget: 'hero_tagline'
+                    })}
+                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <span>✨ AI Generate</span>
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={settings.hero.tagline}
@@ -701,10 +754,24 @@ export default function AdminSiteSettings() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center space-x-2">
-                  <Type className="h-3 w-3" />
-                  <span>Main Heading (Primary / Fallback)</span>
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-2">
+                    <Type className="h-3 w-3" />
+                    <span>Main Heading (Primary / Fallback)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAiModalState({
+                      isOpen: true,
+                      type: 'hero_heading',
+                      input: settings.hero.title || 'Fresh Farm Products From Our Farm',
+                      fieldTarget: 'hero_title'
+                    })}
+                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <span>✨ AI Generate</span>
+                  </button>
+                </div>
                 <textarea
                   value={settings.hero.title}
                   rows={2}
@@ -1633,6 +1700,14 @@ export default function AdminSiteSettings() {
             </div>
           </div>
         </div>
+
+        <AdminAICopywriter
+          isOpen={aiModalState.isOpen}
+          onClose={() => setAiModalState(prev => ({ ...prev, isOpen: false }))}
+          defaultPromptType={aiModalState.type}
+          defaultInput={aiModalState.input}
+          onApplyCopy={handleApplyAICopy}
+        />
       </div>
     </div>
   );

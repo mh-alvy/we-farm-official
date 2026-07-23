@@ -3,8 +3,19 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import https from "https";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
+
+// Shared Gemini AI Client instance
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 async function startServer() {
   const app = express();
@@ -14,6 +25,122 @@ async function startServer() {
 
   // Serve Hero Section Animated Frames under /hero-frames
   app.use("/hero-frames", express.static(path.join(process.cwd(), "Hero Section Animated Frames")));
+
+  // API Route: WeFarm AI Chatbot Assistant
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { messages } = req.body;
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ success: false, error: "Messages array is required." });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "GEMINI_API_KEY environment variable is missing on the server. Please check your secrets configuration." 
+        });
+      }
+
+      const contents = messages.map((m: { role: string; text: string }) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text }]
+      }));
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: contents,
+        config: {
+          systemInstruction: `You are "WeFarm AI", the official AI Assistant for WeFarm - a family-run regenerative farm in Cumilla, Bangladesh.
+Your philosophy is "Soil to Soul": healthy soil creates healthy food, which nourishes the soul.
+
+Key facts about WeFarm:
+- Location: Cumilla, Bangladesh.
+- Focus: Regenerative agriculture, 100% natural organic farming, native Bangladesh cattle (Deshi breeds), free-range heritage poultry, chemical-free dairy, and grass-fed meat.
+- Offerings: Premium fresh organic meat, raw grass-fed milk, farm-fresh eggs, pure organic ghee, natural mustard oil, seasonal crops.
+- Investment Projects: Offers crowd-farming and participatory agriculture investment opportunities (e.g., Organic Dairy Expansion, Heritage Poultry, Agroforestry, Native Breed Cattle Conservation) with transparent profit sharing, regular farm updates, and field visits.
+- Mission: Reconnecting people with honest food, restoring soil fertility, and empowering local Bangladeshi farmers through sustainable agriculture.
+
+Tone & Persona:
+- Warm, earthy, hospitable, knowledgeable, authentic, and passionate about natural farming.
+- Keep answers helpful, concise, well-formatted (use bullet points or markdown when appropriate), and inspiring.
+- If asked about prices, orders, or investment opportunities, guide users to explore the "Products / Shop" or "Investment Projects" sections of the website, or contact the farm team via the Contact page.`
+        }
+      });
+
+      const reply = response.text || "I'm sorry, I couldn't generate a response right now. Please try asking again!";
+      return res.json({ success: true, reply });
+    } catch (error: any) {
+      console.error("Error in /api/ai/chat:", error);
+      return res.status(500).json({ success: false, error: error.message || "Failed to generate AI response." });
+    }
+  });
+
+  // API Route: Admin AI Copywriter
+  app.post("/api/ai/copywrite", async (req, res) => {
+    try {
+      const { promptType, promptInput, tone = "Warm & Earthy" } = req.body;
+      if (!promptInput) {
+        return res.status(400).json({ success: false, error: "Prompt input is required." });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ 
+          success: false, 
+          error: "GEMINI_API_KEY environment variable is missing on the server. Please check your secrets configuration." 
+        });
+      }
+
+      const systemInstruction = `You are a master agricultural brand copywriter for "WeFarm - Soil to Soul", a high-end regenerative farm in Cumilla, Bangladesh.
+Your task is to generate compelling, beautiful, and authentic copy for website banners, headlines, project pitches, or product descriptions.
+Tone: ${tone}.
+Always emphasize freshness, soil health, regenerative practices, transparent local farming, and emotional resonance.
+Provide 3 distinct creative options formatted strictly as a JSON array of strings: ["Option 1", "Option 2", "Option 3"]. Do not include markdown formatting or extra text outside the JSON.`;
+
+      let userPrompt = "";
+      switch (promptType) {
+        case "hero_heading":
+          userPrompt = `Generate 3 impactful, concise hero main titles for the website hero banner based on key theme: "${promptInput}".`;
+          break;
+        case "hero_tagline":
+          userPrompt = `Generate 3 memorable sub-taglines or subtitle paragraphs for the website hero section based on: "${promptInput}".`;
+          break;
+        case "project_pitch":
+          userPrompt = `Generate 3 persuasive project pitch descriptions for an agricultural investment campaign with topic: "${promptInput}".`;
+          break;
+        case "product_description":
+          userPrompt = `Generate 3 appetite-inducing, natural product descriptions for farm product: "${promptInput}".`;
+          break;
+        case "about_story":
+          userPrompt = `Generate 3 inspiring brand story paragraphs for our About Us section focusing on: "${promptInput}".`;
+          break;
+        default:
+          userPrompt = `Generate 3 creative brand copy variations for: "${promptInput}".`;
+          break;
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: userPrompt,
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+        }
+      });
+
+      const rawText = response.text || "[]";
+      let suggestions: string[] = [];
+      try {
+        suggestions = JSON.parse(rawText);
+      } catch (e) {
+        suggestions = [rawText];
+      }
+
+      return res.json({ success: true, suggestions });
+    } catch (error: any) {
+      console.error("Error in /api/ai/copywrite:", error);
+      return res.status(500).json({ success: false, error: error.message || "Failed to generate copy." });
+    }
+  });
 
   // API Route: Send SMS via Alpha Net SMS Gateway (https://api.sms.net.bd/sendsms)
   app.post("/api/notify-investors", async (req, res) => {

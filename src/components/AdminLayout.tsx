@@ -4,6 +4,7 @@ import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import Sidebar from './Sidebar';
+import AdminAICopywriter from './AdminAICopywriter';
 import { Menu } from 'lucide-react';
 
 import { FARM_NAME } from '../constants';
@@ -79,6 +80,7 @@ export default function AdminLayout() {
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
+              <AdminAICopywriter />
               <div className="text-right hidden md:block">
                 <div className="text-sm font-bold text-gray-900">{user?.displayName}</div>
                 <div className="text-xs text-gray-500">{user?.email}</div>

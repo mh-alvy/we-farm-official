@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import IslamicAnnouncementBar from './IslamicAnnouncementBar';
+import SoilToSoulChatbot from './SoilToSoulChatbot';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -31,6 +32,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <Footer />
+      <SoilToSoulChatbot />
     </div>
   );
 }
