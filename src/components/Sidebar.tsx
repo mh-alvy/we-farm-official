@@ -6,7 +6,6 @@ import {
   Package, 
   ShoppingCart, 
   TrendingUp, 
-  Settings,
   ArrowLeft,
   Users,
   Layout,
@@ -88,13 +87,6 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps)
             </Link>
           ))}
         </nav>
-        
-        <div className="pt-6 mt-6 border-t border-gray-100">
-          <button className="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-gray-900 w-full transition-all">
-            <Settings className="h-5 w-5" />
-            <span>Settings</span>
-          </button>
-        </div>
       </div>
     </div>
   );
