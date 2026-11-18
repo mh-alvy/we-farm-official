@@ -178,5 +178,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    match /stockItems/{itemId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /stockLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
   }
 }
