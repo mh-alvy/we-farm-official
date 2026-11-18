@@ -477,8 +477,9 @@ async function startServer() {
           parts: [{ text: m.text }],
         }));
 
+        const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
         const response = await ai.models.generateContent({
-          model: "gemini-4-hydrogen",
+          model: geminiModel,
           contents,
           config: {
             systemInstruction: `You are "WeFarm AI", the official AI Assistant for WeFarm - a family-run regenerative farm in Cumilla, Bangladesh.
@@ -566,8 +567,9 @@ Provide 3 distinct creative options formatted strictly as a JSON array of string
             break;
         }
 
+        const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
         const response = await ai.models.generateContent({
-          model: "gemini-4-hydrogen",
+          model: geminiModel,
           contents: userPrompt,
           config: {
             systemInstruction,
@@ -659,8 +661,9 @@ Return ONLY a valid JSON array of strings of the exact same length as the input 
 Convert each Bengali string in the input JSON array into polished, natural, compelling English copy appropriate for a modern agricultural & investment website.
 Return ONLY a valid JSON array of strings of the exact same length as the input array.`;
 
+            const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
             const response = await ai.models.generateContent({
-              model: "gemini-4-hydrogen",
+              model: geminiModel,
               contents: JSON.stringify(items),
               config: {
                 systemInstruction,
@@ -705,8 +708,9 @@ Do NOT add quotes, explanations, or extra commentary — output ONLY the final B
 Convert the user's Bengali text into polished, natural, and compelling English copy suitable for "${fieldContext}" on our website.
 Do NOT add quotes, explanations, or extra commentary — output ONLY the final English text.`;
 
+          const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
           const response = await ai.models.generateContent({
-            model: "gemini-4-hydrogen",
+            model: geminiModel,
             contents: text.trim(),
             config: {
               systemInstruction,
