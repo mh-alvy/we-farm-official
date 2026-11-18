@@ -180,11 +180,11 @@ service cloud.firestore {
     }
 
     match /stockItems/{itemId} {
-      allow read, write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /stockLogs/{logId} {
-      allow read, write: if isAdmin();
+      allow read, write: if true;
     }
   }
 }
