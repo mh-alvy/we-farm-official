@@ -462,9 +462,106 @@ async function startServer() {
     }
   }
 
+  // Helper to build real-time dynamic Chatbot system prompt with live projects & products
+  function buildChatbotInstruction(context?: { projects?: any[]; products?: any[] }): string {
+    let projectsSection = "";
+    if (context?.projects && Array.isArray(context.projects) && context.projects.length > 0) {
+      projectsSection = context.projects.map((p, i) => {
+        const batchesStr = p.batches && p.batches.length > 0
+          ? p.batches.map((b: any) => `${b.batchName || 'Batch'} (${b.durationMonths || 12} months)`).join(", ")
+          : "Standard batch";
+        return `Project #${i + 1}: ${p.title} ${p.titleBn ? `(${p.titleBn})` : ''}
+  - Category / Profit Model: ${p.profitType === 'monthly' ? 'Monthly Profit Payout (প্রতি মাসে নিয়মিত লভ্যাংশ)' : 'One-time Return at Maturity (মেয়াদান্তে এককালীন মূলধন ও লাভ)'}
+  - Minimum Investment: ৳${Number(p.minInvestment || 0).toLocaleString()} BDT
+  - Expected Annual ROI / Profit Rate: ${p.roiRate || '18-24'}%
+  - Funding Progress: ৳${Number(p.currentAmount || 0).toLocaleString()} raised of ৳${Number(p.targetAmount || 0).toLocaleString()} BDT target
+  - Project Status: ${p.status || 'Active'}
+  - Active Batches: ${batchesStr}
+  - Description: ${p.description || p.descriptionBn || 'Sustainable agriculture crowd-farming project.'}`;
+      }).join("\n\n");
+    } else {
+      projectsSection = `Project #1: Organic Dairy Farm Expansion (অর্গানিক ডেইরি ফার্ম সম্প্রসারণ)
+  - Profit Model: Monthly Profit Payout (প্রতি মাসে লভ্যাংশ)
+  - Minimum Investment: ৳50,000 BDT
+  - Expected Annual ROI / Profit Rate: 18-22%
+  - Description: High-yield dairy cattle farming for raw milk production in Cumilla with regular field visits.
+
+Project #2: Free-Range Heritage Poultry (দেশি মুরগি ও হাঁস পালন প্রকল্প)
+  - Profit Model: Monthly Profit Payout (প্রতি মাসে লভ্যাংশ)
+  - Minimum Investment: ৳30,000 BDT
+  - Expected Annual ROI / Profit Rate: 20-25%
+  - Description: Natural heritage chicken and duck farming for organic meat and free-range brown eggs.
+
+Project #3: Native Breed Cattle Conservation (দেশি গরু মোটাতাজাকরণ ও সংরক্ষণ)
+  - Profit Model: One-time Return at Maturity (কোরবানি/মেয়াদান্তে এককালীন লভ্যাংশ)
+  - Minimum Investment: ৳100,000 BDT
+  - Expected Annual ROI / Profit Rate: 22-26%
+  - Description: Ethical, 100% grass-fed native Red Chittagong and Pabna cattle farming.`;
+    }
+
+    let productsSection = "";
+    if (context?.products && Array.isArray(context.products) && context.products.length > 0) {
+      productsSection = context.products.map((p, i) => {
+        const stockText = p.stock !== undefined && Number(p.stock) <= 0 
+          ? "Out of Stock (বর্তমানে স্টক শেষ)" 
+          : `In Stock (${p.stock} ${p.unit} available)`;
+        return `Product #${i + 1}: ${p.name} ${p.nameBn ? `(${p.nameBn})` : ''}
+  - Price: ৳${p.price} BDT per ${p.unit}
+  - Availability: ${stockText}
+  - Details: ${p.description || p.descriptionBn || '100% authentic, farm-fresh regenerative produce.'}`;
+      }).join("\n\n");
+    } else {
+      productsSection = `Product #1: Pure Grass-fed Cow Milk (খাঁটি কাঁচা দুধ) - ৳120 BDT per Liter (In Stock)
+Product #2: Premium Fresh Beef (দেশি গরুর মাংস) - ৳850 BDT per Kg (In Stock)
+Product #3: Pure Deshi Cow Ghee (খাঁটি গাওয়া ঘি) - ৳1,800 BDT per Kg (In Stock)
+Product #4: Free-Range Organic Eggs (দেশি মুরগির ডিম) - ৳180 BDT per Dozen (In Stock)
+Product #5: Cold-Pressed Mustard Oil (খাঁটি সরিষার তেল) - ৳350 BDT per Liter (In Stock)`;
+    }
+
+    return `You are "WeFarm AI", the official intelligent virtual assistant for WeFarm — an authentic regenerative agriculture farm and crowd-farming platform located in Cumilla, Bangladesh.
+Philosophy: "Soil to Soul" (সুস্থ জীবন্ত মাটি থেকে সৎ ও খাঁটি পুষ্টিকর খাদ্য, যা মানবদেহ ও আত্মাকে তৃপ্ত করে)।
+
+==============================================================
+CRITICAL LANGUAGE MATCHING RULE (সবচেয়ে গুরুত্বপূর্ণ নিয়ম):
+==============================================================
+1. IF THE USER ASKS OR GREETS IN ENGLISH:
+   -> You MUST respond 100% in natural, fluent, hospitable, and professional English.
+   -> Do NOT respond in Bengali if the user's latest query is in English.
+2. IF THE USER ASKS OR GREETS IN BENGALI (বাংলা হরফে বা Banglish/ইংরেজি হরফে বাংলা লিখলে):
+   -> You MUST respond 100% in polite, warm, elegant, and standard Bengali (সাবলীল ও প্রমিত বাংলা).
+   -> Do NOT respond in English if the user wrote in Bengali or Banglish.
+3. Automatically detect the user's language on every message and match it accurately without awkward code-switching.
+
+==============================================================
+YOUR CORE KNOWLEDGE & CAPABILITIES:
+==============================================================
+- You have COMPLETE, LIVE, and real-time knowledge of all WeFarm investment projects and farm products listed below.
+- Whenever a user asks about prices, stock availability, how to order, minimum investment requirements, ROI / return rates, profit payout models, batches, or farming practices, answer with the EXACT numbers and details from the live knowledge base below.
+- Keep answers helpful, structured with clean bullet points or bold text where appropriate, and inviting.
+- When an investor shows interest, guide them to visit the "Projects (প্রোজেক্টসমূহ)" tab on the website or sign in with their phone/email to apply.
+- When a customer wants to buy food, guide them to visit the "Shop / Products (পণ্যসমূহ)" tab or contact via WhatsApp/phone.
+
+==============================================================
+LIVE WEFARM INVESTMENT PROJECTS:
+==============================================================
+${projectsSection}
+
+==============================================================
+LIVE WEFARM FARM PRODUCTS (SHOP):
+==============================================================
+${productsSection}
+
+==============================================================
+FARM LOCATION & POLICIES:
+==============================================================
+- Location: Cumilla, Bangladesh (খামার: কুমিল্লা, বাংলাদেশ)।
+- Farming Practices: 100% natural, grass-fed, zero chemical pesticides, zero synthetic hormones, ethical animal care.
+- Support & Ordering: Home delivery available across Bangladesh. Direct inquiries welcomed via WhatsApp and website.`;
+  }
+
   // API Route: WeFarm AI Chatbot Assistant
   app.post("/api/ai/chat", async (req, res) => {
-    const { messages } = req.body || {};
+    const { messages, context } = req.body || {};
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ success: false, error: "Messages array is required." });
     }
@@ -478,24 +575,13 @@ async function startServer() {
         }));
 
         const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+        const systemInstruction = buildChatbotInstruction(context);
+
         const response = await ai.models.generateContent({
           model: geminiModel,
           contents,
           config: {
-            systemInstruction: `You are "WeFarm AI", the official AI Assistant for WeFarm - a family-run regenerative farm in Cumilla, Bangladesh.
-Your philosophy is "Soil to Soul": healthy soil creates healthy food, which nourishes the soul.
-
-Key facts about WeFarm:
-- Location: Cumilla, Bangladesh.
-- Focus: Regenerative agriculture, 100% natural organic farming, native Bangladesh cattle (Deshi breeds), free-range heritage poultry, chemical-free dairy, and grass-fed meat.
-- Offerings: Premium fresh organic meat, raw grass-fed milk, farm-fresh eggs, pure organic ghee, natural mustard oil, seasonal crops.
-- Investment Projects: Offers crowd-farming and participatory agriculture investment opportunities (e.g., Organic Dairy Expansion, Heritage Poultry, Agroforestry, Native Breed Cattle Conservation) with transparent profit sharing, regular farm updates, and field visits.
-- Mission: Reconnecting people with honest food, restoring soil fertility, and empowering local Bangladeshi farmers through sustainable agriculture.
-
-Tone & Persona:
-- Warm, earthy, hospitable, knowledgeable, authentic, and passionate about natural farming.
-- Keep answers helpful, concise, well-formatted (use bullet points or markdown when appropriate), and inspiring.
-- If asked about prices, orders, or investment opportunities, guide users to explore the "Products / Shop" or "Investment Projects" sections of the website, or contact the farm team via the Contact page.`,
+            systemInstruction,
           },
         });
 
@@ -506,24 +592,52 @@ Tone & Persona:
       }
     }
 
-    const lastMsg = String(messages[messages.length - 1]?.text || "").toLowerCase();
-    const isBangla = /[\u0980-\u09FF]/.test(lastMsg);
+    // Dynamic Intelligent Fallback when Gemini is unavailable or credits are depleted
+    const lastMsg = String(messages[messages.length - 1]?.text || "").trim();
+    const lastMsgLower = lastMsg.toLowerCase();
+    const isBangla = /[\u0980-\u09FF]/.test(lastMsg) || 
+      /\b(apnader|koto|taka|biniyog|prokolpo|purno|dam|lagbe|hobe|kivabe|acha|bhalo|kichu|chai|khabar|dudh|mangsho|ghee|dim|tel|kharid|kena)\b/i.test(lastMsgLower);
+
+    const projs = (context?.projects && Array.isArray(context.projects) && context.projects.length > 0) ? context.projects : null;
+    const prods = (context?.products && Array.isArray(context.products) && context.products.length > 0) ? context.products : null;
+
     let reply = "";
     if (isBangla) {
-      if (lastMsg.includes("ইনভেস্ট") || lastMsg.includes("বিনিয়োগ") || lastMsg.includes("প্রোজেক্ট") || lastMsg.includes("মুনাফা")) {
-        reply = "উইফার্ম (WeFarm)-এ আপনাকে স্বাগতম! আমাদের চলমান কৃষি ও ডেইরি প্রোজেক্টগুলোতে আপনি মাসিক লভ্যাংশ অথবা এককালীন প্রফিট শেয়ারিং পদ্ধতিতে বিনিয়োগ করতে পারেন। বিস্তারিত জানতে **প্রোজেক্টসমূহ (Invest)** পেইজটি দেখুন।";
-      } else if (lastMsg.includes("পণ্য") || lastMsg.includes("দুধ") || lastMsg.includes("মাংস") || lastMsg.includes("অর্ডার")) {
-        reply = "আমাদের খামার থেকে সরাসরি ১০০% অর্গানিক দুধ, দেশি গরুর মাংস, ঘি এবং তাজা কৃষি পণ্য অর্ডার করতে **পণ্যসমূহ (Products)** সেকশনে ভিজিট করুন।";
+      if (lastMsgLower.includes("ইনভেস্ট") || lastMsgLower.includes("বিনিয়োগ") || lastMsgLower.includes("প্রোজেক্ট") || lastMsgLower.includes("মুনাফা") || lastMsgLower.includes("invest") || lastMsgLower.includes("project")) {
+        if (projs) {
+          const pList = projs.slice(0, 3).map((p: any) => `• **${p.titleBn || p.title}**: সর্বনিম্ন বিনিয়োগ ৳${Number(p.minInvestment || 0).toLocaleString()} (প্রত্যাশিত রিটার্ন ${p.roiRate || 20}%)`).join("\n");
+          reply = `উইফার্মের চলমান কৃষি ও ডেইরি প্রকল্পসমূহে আপনাকে স্বাগতম!\n\nআমাদের বর্তমান প্রধান প্রকল্পসমূহ:\n${pList}\n\nবিস্তারিত জানতে এবং সরাসরি যুক্ত হতে ওয়েবসাইটের **প্রোজেক্টসমূহ (Invest)** সেকশনটি ঘুরে দেখুন।`;
+        } else {
+          reply = "উইফার্ম (WeFarm)-এ আপনাকে স্বাগতম! আমাদের চলমান কৃষি ও ডেইরি প্রোজেক্টগুলোতে আপনি মাসিক লভ্যাংশ অথবা এককালীন প্রফিট শেয়ারিং পদ্ধতিতে বিনিয়োগ করতে পারেন। বিস্তারিত জানতে ওয়েবসাইটের **প্রোজেক্টসমূহ** পেইজটি দেখুন।";
+        }
+      } else if (lastMsgLower.includes("পণ্য") || lastMsgLower.includes("দুধ") || lastMsgLower.includes("মাংস") || lastMsgLower.includes("ঘি") || lastMsgLower.includes("ডিম") || lastMsgLower.includes("অর্ডার") || lastMsgLower.includes("দাম") || lastMsgLower.includes("product") || lastMsgLower.includes("dam") || lastMsgLower.includes("price")) {
+        if (prods) {
+          const prList = prods.slice(0, 4).map((p: any) => `• **${p.nameBn || p.name}**: ৳${p.price} / ${p.unit}`).join("\n");
+          reply = `আমাদের খামারের ১০০% ন্যাচারাল অর্গানিক পণ্যসমূহ:\n${prList}\n\nসরাসরি অর্ডার করতে ওয়েবসাইটের **পণ্যসমূহ (Shop)** পেইজে ভিজিট করুন অথবা আমাদের সাথে যোগাযোগ করুন।`;
+        } else {
+          reply = "আমাদের খামার থেকে সরাসরি ১০০% অর্গানিক দুধ (৳১২০/লিটার), দেশি গরুর মাংস (৳৮৫০/কেজি), খাঁটি ঘি এবং ডিম অর্ডার করতে ওয়েবসাইটের **পণ্যসমূহ (Products)** সেকশনে ভিজিট করুন।";
+        }
       } else {
-        reply = "আসসালামু আলাইকুম! আমি **WeFarm AI Assistant**। আমাদের খামারের তাজা অর্গানিক পণ্য অর্ডার করতে বা কৃষি প্রোজেক্টে হালাল ও স্বচ্ছভাবে বিনিয়োগ করতে আমাদের ওয়েবসাইটের **প্রোজেক্টসমূহ** ও **পণ্যসমূহ** সেকশনগুলো ঘুরে দেখুন, অথবা সরাসরি হোয়াটসঅ্যাপে যোগাযোগ করুন।";
+        reply = "আসসালামু আলাইকুম! আমি **WeFarm AI Assistant**। আমাদের খামারের ১০০% খাঁটি অর্গানিক পণ্য অর্ডার করতে অথবা হালাল ও নিরাপদ কৃষি প্রকল্পে বিনিয়োগের সুযোগ জানতে আমি আপনাকে সাহায্য করতে পারি। আপনি ঠিক কোন বিষয়ে জানতে চান?";
       }
     } else {
-      if (lastMsg.includes("invest") || lastMsg.includes("project") || lastMsg.includes("profit") || lastMsg.includes("return")) {
-        reply = "Welcome to **WeFarm**! You can invest in our regenerative farming and dairy projects with either monthly profit-sharing or one-time return options. Visit our **Investment Projects** section to explore open batches and start investing.";
-      } else if (lastMsg.includes("product") || lastMsg.includes("milk") || lastMsg.includes("meat") || lastMsg.includes("order") || lastMsg.includes("shop")) {
-        reply = "We offer 100% chemical-free, farm-fresh dairy, grass-fed meat, organic ghee, and seasonal produce directly from our farm. Visit the **Products** section to place your order!";
+      // English response
+      if (lastMsgLower.includes("invest") || lastMsgLower.includes("project") || lastMsgLower.includes("profit") || lastMsgLower.includes("return") || lastMsgLower.includes("roi")) {
+        if (projs) {
+          const pList = projs.slice(0, 3).map((p: any) => `• **${p.title}**: Min Investment ৳${Number(p.minInvestment || 0).toLocaleString()} BDT (Est. Return ${p.roiRate || 20}%)`).join("\n");
+          reply = `Welcome to WeFarm Investment Opportunities!\n\nHere are some of our active projects:\n${pList}\n\nYou can explore active batches and apply directly in our **Projects** section.`;
+        } else {
+          reply = "Welcome to **WeFarm**! You can invest in our regenerative farming and dairy projects with either monthly profit-sharing or one-time return options. Visit our **Investment Projects** section to explore open batches.";
+        }
+      } else if (lastMsgLower.includes("product") || lastMsgLower.includes("milk") || lastMsgLower.includes("meat") || lastMsgLower.includes("ghee") || lastMsgLower.includes("egg") || lastMsgLower.includes("order") || lastMsgLower.includes("shop") || lastMsgLower.includes("price")) {
+        if (prods) {
+          const prList = prods.slice(0, 4).map((p: any) => `• **${p.name}**: ৳${p.price} BDT per ${p.unit}`).join("\n");
+          reply = `Here are some of our 100% farm-fresh organic products:\n${prList}\n\nVisit our **Products / Shop** section to place your order with fast home delivery!`;
+        } else {
+          reply = "We offer 100% chemical-free, farm-fresh dairy (৳120/L), grass-fed beef (৳850/kg), organic ghee, and eggs directly from our farm in Cumilla. Visit the **Products** section to place your order!";
+        }
       } else {
-        reply = "Hello! Welcome to **WeFarm — Soil to Soul**. We practice regenerative agriculture in Bangladesh, offering both farm-fresh organic products and transparent crowd-farming investment opportunities. How can I help you today?";
+        reply = "Hello! Welcome to **WeFarm — Soil to Soul**. We practice regenerative agriculture in Cumilla, Bangladesh, offering farm-fresh organic produce and transparent crowd-farming investment opportunities. How can I assist you today?";
       }
     }
     return res.json({ success: true, reply });

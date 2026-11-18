@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, X, Bot, User, RefreshCw, ChevronDown, Leaf, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useLanguage } from '../lib/LanguageContext';
 
 interface Message {
   id: string;
@@ -9,20 +12,34 @@ interface Message {
   timestamp: Date;
 }
 
-const QUICK_SUGGESTIONS = [
+const QUICK_SUGGESTIONS_EN = [
   "🌱 What is the Soil to Soul philosophy?",
-  "🐄 What cattle & poultry breeds do you farm?",
-  "📈 How do agricultural investments work?",
+  "📈 What investment projects are currently available?",
+  "🛒 What farm products are available and their prices?",
   "📍 Where is WeFarm located in Bangladesh?"
 ];
 
+const QUICK_SUGGESTIONS_BN = [
+  "🌱 Soil to Soul ফিলোসফি কী?",
+  "📈 আপনাদের কী কী ইনভেস্টমেন্ট প্রোজেক্ট আছে?",
+  "🛒 কোন কোন খাদ্যপণ্য পাওয়া যায় এবং তাদের দাম কত?",
+  "📍 আপনাদের খামারটি বাংলাদেশে কোথায় অবস্থিত?"
+];
+
 export default function SoilToSoulChatbot() {
+  const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [liveProjects, setLiveProjects] = useState<any[]>([]);
+  const [liveProducts, setLiveProducts] = useState<any[]>([]);
+
+  const defaultWelcomeEn = "Hello! Welcome to WeFarm. I am WeFarm AI, your intelligent farming assistant. How can I help you explore our regenerative farm, natural products, or crowd-farming investment projects today?";
+  const defaultWelcomeBn = "আসসালামু আলাইকুম! উইফার্মে আপনাকে স্বাগতম। আমি WeFarm AI, আপনার স্মার্ট কৃষি সহকারী। আমাদের প্রাকৃতিক খামার, অর্গানিক খাদ্যপণ্য বা কৃষি বিনিয়োগ প্রকল্প সম্পর্কে কীভাবে সাহায্য করতে পারি?";
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Hello! Welcome to WeFarm. I am WeFarm AI, your intelligent farming assistant. How can I help you explore our regenerative farm, natural products, or crowd-farming investment projects today?",
+      text: language === 'bn' ? defaultWelcomeBn : defaultWelcomeEn,
       timestamp: new Date()
     }
   ]);
@@ -31,6 +48,22 @@ export default function SoilToSoulChatbot() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Real-time synchronization of Projects and Products directly from Firestore
+  useEffect(() => {
+    const unsubProjects = onSnapshot(collection(db, 'projects'), (snap) => {
+      setLiveProjects(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.warn('Chatbot projects sync:', err));
+
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snap) => {
+      setLiveProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.warn('Chatbot products sync:', err));
+
+    return () => {
+      unsubProjects();
+      unsubProducts();
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,10 +94,39 @@ export default function SoilToSoulChatbot() {
         text: m.text
       }));
 
+      // Pack live dynamic snapshot of all projects and products
+      const context = {
+        projects: liveProjects.map(p => ({
+          title: p.title || '',
+          titleBn: p.titleBn || '',
+          description: p.description || '',
+          descriptionBn: p.descriptionBn || '',
+          minInvestment: p.minInvestment || 0,
+          roiRate: p.roiRate || 0,
+          profitType: p.profitType || 'monthly',
+          targetAmount: p.targetAmount || 0,
+          currentAmount: p.currentAmount || 0,
+          status: p.status || 'Active',
+          batches: p.batches || []
+        })),
+        products: liveProducts.map(p => ({
+          name: p.name || '',
+          nameBn: p.nameBn || '',
+          price: p.price || 0,
+          unit: p.unit || 'Kg',
+          stock: p.stock !== undefined ? p.stock : 10,
+          description: p.description || '',
+          descriptionBn: p.descriptionBn || ''
+        }))
+      };
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiHistory })
+        body: JSON.stringify({ 
+          messages: apiHistory,
+          context
+        })
       });
 
       const data = await res.json();
@@ -79,11 +141,11 @@ export default function SoilToSoulChatbot() {
           }
         ]);
       } else {
-        setErrorMsg(data.error || "Sorry, I couldn't process your request.");
+        setErrorMsg(data.error || (language === 'bn' ? "দুঃখিত, এই মুহূর্তে উত্তর তৈরি করা সম্ভব হয়নি। আবার চেষ্টা করুন।" : "Sorry, I couldn't process your request. Please try again."));
       }
     } catch (err) {
       console.error("Chatbot request failed:", err);
-      setErrorMsg("Network error. Please check your connection and try again.");
+      setErrorMsg(language === 'bn' ? "নেটওয়ার্ক সমস্যা। সংযোগ পরীক্ষা করে পুনরায় চেষ্টা করুন।" : "Network error. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -101,12 +163,14 @@ export default function SoilToSoulChatbot() {
       {
         id: 'welcome',
         role: 'assistant',
-        text: "Hello! Welcome to WeFarm. I am WeFarm AI, your intelligent farming assistant. How can I help you explore our regenerative farm, natural products, or crowd-farming investment projects today?",
+        text: language === 'bn' ? defaultWelcomeBn : defaultWelcomeEn,
         timestamp: new Date()
       }
     ]);
     setErrorMsg(null);
   };
+
+  const currentSuggestions = language === 'bn' ? QUICK_SUGGESTIONS_BN : QUICK_SUGGESTIONS_EN;
 
   return (
     <>
@@ -139,7 +203,7 @@ export default function SoilToSoulChatbot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-24 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[400px] h-[540px] max-h-[80vh] bg-white rounded-3xl shadow-2xl border border-emerald-100 flex flex-col z-50 overflow-hidden"
+            className="fixed bottom-24 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[420px] h-[550px] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-emerald-100 flex flex-col z-50 overflow-hidden"
             id="wefarm-ai-chatbot-window"
           >
             {/* Header */}
@@ -153,13 +217,15 @@ export default function SoilToSoulChatbot() {
                     <h3 className="font-bold text-sm tracking-wide text-white">WeFarm AI</h3>
                     <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[9px] font-bold rounded-md uppercase">Soil to Soul</span>
                   </div>
-                  <p className="text-[10px] text-emerald-200/80">Regenerative Farming & Investment Guide</p>
+                  <p className="text-[10px] text-emerald-200/80">
+                    {language === 'bn' ? 'কৃষি, পণ্য ও বিনিয়োগ নির্দেশিকা (বাংলা ও English)' : 'Regenerative Farming & Investment Guide'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center space-x-1">
                 <button
                   onClick={clearChat}
-                  title="Clear conversation"
+                  title={language === 'bn' ? 'চ্যাট পরিষ্কার করুন' : 'Clear conversation'}
                   className="p-1.5 text-emerald-200 hover:text-white hover:bg-emerald-800/50 rounded-lg transition-colors cursor-pointer"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -192,10 +258,10 @@ export default function SoilToSoulChatbot() {
                     {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   </div>
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                    className={`max-w-[82%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
                       msg.role === 'user'
                         ? 'bg-emerald-600 text-white rounded-tr-none font-medium'
-                        : 'bg-white text-gray-800 shadow-sm border border-emerald-100/60 rounded-tl-none whitespace-pre-line'
+                        : 'bg-white text-gray-800 shadow-2xs border border-emerald-100/60 rounded-tl-none whitespace-pre-line'
                     }`}
                   >
                     {msg.text}
@@ -206,7 +272,9 @@ export default function SoilToSoulChatbot() {
               {isLoading && (
                 <div className="flex items-center space-x-2 text-emerald-700 bg-emerald-50/80 p-3 rounded-2xl w-max text-xs border border-emerald-100">
                   <Sparkles className="h-4 w-4 animate-spin text-emerald-600" />
-                  <span className="font-medium animate-pulse">Gathering farm insights...</span>
+                  <span className="font-medium animate-pulse">
+                    {language === 'bn' ? 'খামার ও পণ্যের তথ্য যাচাই করা হচ্ছে...' : 'Analyzing live farm & product data...'}
+                  </span>
                 </div>
               )}
 
@@ -219,9 +287,11 @@ export default function SoilToSoulChatbot() {
               {/* Quick suggestions when history is short */}
               {messages.length <= 2 && !isLoading && (
                 <div className="pt-2 space-y-1.5">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Suggested Questions</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">
+                    {language === 'bn' ? 'সচরাচর জিজ্ঞাসিত প্রশ্নসমূহ' : 'Suggested Questions'}
+                  </p>
                   <div className="grid grid-cols-1 gap-1.5">
-                    {QUICK_SUGGESTIONS.map((q, idx) => (
+                    {currentSuggestions.map((q, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSend(q)}
@@ -246,9 +316,9 @@ export default function SoilToSoulChatbot() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about our farm, products, investments..."
+                  placeholder={language === 'bn' ? 'খামার, পণ্য, বিনিয়োগ সম্পর্কে লিখুন...' : 'Ask about our farm, products, investments...'}
                   disabled={isLoading}
-                  className="w-full bg-transparent border-none text-xs text-gray-800 placeholder-gray-400 focus:outline-none py-1.5"
+                  className="w-full bg-transparent border-none text-xs text-gray-800 placeholder-gray-400 focus:outline-none py-1.5 font-medium"
                 />
                 <button
                   onClick={() => handleSend()}
@@ -259,7 +329,7 @@ export default function SoilToSoulChatbot() {
                 </button>
               </div>
               <p className="text-[9px] text-gray-400 text-center mt-2">
-                WeFarm AI Assistant powered by Gemini 3.6 Flash
+                WeFarm AI Assistant • Powered by Gemini 2.5 Flash
               </p>
             </div>
           </motion.div>
