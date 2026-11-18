@@ -36,6 +36,9 @@ export default function AdminCows() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'id' | 'name' | 'date'>('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [reportHistoryTab, setReportHistoryTab] = useState<'daily' | 'vaccine'>('daily');
+  const [showAllVaccinesInline, setShowAllVaccinesInline] = useState(false);
+  const [vacSearchTerm, setVacSearchTerm] = useState('');
 
   const toggleExpandCow = (cowId: string) => {
     setExpandedCowId(prev => (prev === cowId ? null : cowId));
@@ -471,6 +474,9 @@ export default function AdminCows() {
 
   const handleViewLogs = (cow: Cow) => {
     setSelectedCow(cow);
+    setReportHistoryTab('daily');
+    setShowAllVaccinesInline(false);
+    setVacSearchTerm('');
     fetchLogs(cow.id!);
   };
 
@@ -1005,6 +1011,7 @@ export default function AdminCows() {
                                       type="button"
                                       onClick={() => {
                                         setSelectedCow(cow);
+                                        fetchLogs(cow.id!);
                                         setIsVacModalOpen(true);
                                       }}
                                       className="group flex items-center p-3.5 rounded-xl border border-indigo-200 bg-white hover:border-indigo-400 hover:bg-indigo-50/40 hover:shadow-sm text-left transition-all"
@@ -1779,23 +1786,65 @@ export default function AdminCows() {
                   </div>
 
                   <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Latest Vaccinations</h3>
-                    <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center space-x-1.5">
+                        <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                        <span>Vaccinations {vaccinationLogs.length > 0 && `(${vaccinationLogs.length})`}</span>
+                      </h3>
+                      {vaccinationLogs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setReportHistoryTab('vaccine')}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center space-x-0.5"
+                          title="View all vaccines in history pane"
+                        >
+                          <span>View All</span>
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className={`space-y-3 ${showAllVaccinesInline ? 'max-h-72 overflow-y-auto pr-1' : ''}`}>
                       {vaccinationLogs.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">No vaccination history</p>
+                        <p className="text-xs text-gray-400 italic py-2">No vaccination history recorded</p>
                       ) : (
-                        vaccinationLogs.slice(-3).reverse().map((vac, i) => (
-                          <div key={i} className="flex items-start space-x-3">
+                        (showAllVaccinesInline
+                          ? [...vaccinationLogs].reverse()
+                          : vaccinationLogs.slice(-3).reverse()
+                        ).map((vac, i) => (
+                          <div key={vac.id || i} className="flex items-start space-x-3 p-2 rounded-xl hover:bg-gray-50/80 transition-colors">
                             <div className="mt-1.5 w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                            <div>
-                              <p className="text-sm font-bold text-gray-900">{vac.vaccineName}</p>
-                              <p className="text-[10px] text-gray-400">{formatDate(vac.date)}</p>
-                              {vac.description && <p className="text-[10px] text-gray-500 mt-1">{vac.description}</p>}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-bold text-gray-900 truncate">{vac.vaccineName}</p>
+                                <span className="text-[10px] font-semibold text-gray-400 shrink-0 ml-1">{formatDate(vac.date)}</span>
+                              </div>
+                              {vac.description && <p className="text-xs text-gray-500 mt-0.5 break-words">{vac.description}</p>}
                             </div>
                           </div>
                         ))
                       )}
                     </div>
+
+                    {vaccinationLogs.length > 3 && (
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setShowAllVaccinesInline(prev => !prev)}
+                          className="font-bold text-indigo-600 hover:text-indigo-800 flex items-center space-x-1"
+                        >
+                          <span>{showAllVaccinesInline ? 'Show Recent 3 Only' : `Expand All (${vaccinationLogs.length})`}</span>
+                          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllVaccinesInline ? 'rotate-180' : ''}`} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReportHistoryTab('vaccine')}
+                          className="font-bold text-gray-500 hover:text-gray-800 hover:underline"
+                        >
+                          Full Table &rarr;
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1833,25 +1882,154 @@ export default function AdminCows() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 border-b pb-2">History Records</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-64 overflow-y-auto pr-2">
-                       {filterLogs(selectedCow.category === 'Fattening' ? weightLogs : milkLogs).slice().reverse().map((log, i) => (
-                        <div key={i} className="bg-white border rounded-xl p-4 flex justify-between items-center hover:border-gray-300 transition-colors">
-                          <div>
-                            <p className="text-[10px] text-gray-400 uppercase font-bold">{formatDate(log.date)}</p>
-                            <p className="text-sm font-bold text-gray-900 lowercase first-letter:uppercase">
-                              {selectedCow.category === 'Fattening' ? 'Weight Log' : (log as MilkLog).type}
-                            </p>
-                          </div>
-                          <span className="text-lg font-bold text-gray-900">
-                            {selectedCow.category === 'Fattening' ? (log as WeightLog).weight : (log as MilkLog).amount} 
-                            <span className="text-xs font-normal text-gray-400 ml-1 italic">
-                              {selectedCow.category === 'Fattening' ? 'kg' : (log as MilkLog).unit}
-                            </span>
-                          </span>
-                        </div>
-                      ))}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setReportHistoryTab('daily')}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            reportHistoryTab === 'daily'
+                              ? 'bg-gray-900 text-white shadow-xs'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {selectedCow.category === 'Fattening' ? 'Weight Logs' : 'Milking Logs'} (
+                          {filterLogs(selectedCow.category === 'Fattening' ? weightLogs : milkLogs).length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReportHistoryTab('vaccine')}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                            reportHistoryTab === 'vaccine'
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                          }`}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          <span>All Vaccine History ({vaccinationLogs.length})</span>
+                        </button>
+                      </div>
+
+                      {reportHistoryTab === 'vaccine' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVacData({ vaccineName: '', description: '', date: new Date().toISOString().split('T')[0] });
+                            setIsVacModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Add Vaccine</span>
+                        </button>
+                      )}
                     </div>
+
+                    {reportHistoryTab === 'daily' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-72 overflow-y-auto pr-2">
+                        {filterLogs(selectedCow.category === 'Fattening' ? weightLogs : milkLogs).length === 0 ? (
+                          <div className="col-span-2 py-8 text-center text-gray-400 text-xs italic">
+                            No logs found for this period.
+                          </div>
+                        ) : (
+                          filterLogs(selectedCow.category === 'Fattening' ? weightLogs : milkLogs).slice().reverse().map((log, i) => (
+                            <div key={i} className="bg-white border rounded-xl p-4 flex justify-between items-center hover:border-gray-300 transition-colors">
+                              <div>
+                                <p className="text-[10px] text-gray-400 uppercase font-bold">{formatDate(log.date)}</p>
+                                <p className="text-sm font-bold text-gray-900 lowercase first-letter:uppercase">
+                                  {selectedCow.category === 'Fattening' ? 'Weight Log' : (log as MilkLog).type}
+                                </p>
+                              </div>
+                              <span className="text-lg font-bold text-gray-900">
+                                {selectedCow.category === 'Fattening' ? (log as WeightLog).weight : (log as MilkLog).amount} 
+                                <span className="text-xs font-normal text-gray-400 ml-1 italic">
+                                  {selectedCow.category === 'Fattening' ? 'kg' : (log as MilkLog).unit}
+                                </span>
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    ) : (
+                      /* Complete Vaccine History View */
+                      <div className="space-y-3">
+                        {vaccinationLogs.length > 3 && (
+                          <div className="relative">
+                            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="text"
+                              value={vacSearchTerm}
+                              onChange={(e) => setVacSearchTerm(e.target.value)}
+                              placeholder="Search vaccines by name or description..."
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-xs outline-none focus:border-indigo-500 font-medium"
+                            />
+                            {vacSearchTerm && (
+                              <button
+                                onClick={() => setVacSearchTerm('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 font-bold"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-2">
+                          {(() => {
+                            const filtered = vaccinationLogs.filter(v => {
+                              if (!vacSearchTerm.trim()) return true;
+                              const term = vacSearchTerm.toLowerCase();
+                              return (
+                                (v.vaccineName && v.vaccineName.toLowerCase().includes(term)) ||
+                                (v.description && v.description.toLowerCase().includes(term)) ||
+                                (v.date && v.date.includes(term))
+                              );
+                            });
+
+                            if (filtered.length === 0) {
+                              return (
+                                <div className="py-8 text-center text-gray-400 text-xs italic bg-gray-50 rounded-xl border border-dashed">
+                                  {vacSearchTerm ? 'No vaccines match your search.' : 'No vaccination history recorded for this cattle yet.'}
+                                </div>
+                              );
+                            }
+
+                            return [...filtered].reverse().map((vac, index) => (
+                              <div
+                                key={vac.id || index}
+                                className="bg-white border border-gray-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-indigo-200 hover:shadow-xs transition-all"
+                              >
+                                <div className="flex items-start space-x-3 min-w-0">
+                                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 font-bold text-xs mt-0.5 border border-indigo-100">
+                                    #{filtered.length - index}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="text-sm font-bold text-gray-900 truncate">{vac.vaccineName}</h4>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
+                                        Vaccine
+                                      </span>
+                                    </div>
+                                    {vac.description ? (
+                                      <p className="text-xs text-gray-600 mt-1 leading-relaxed break-words">{vac.description}</p>
+                                    ) : (
+                                      <p className="text-xs text-gray-400 italic mt-0.5">No notes provided</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="sm:text-right shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0">
+                                  <span className="inline-flex items-center space-x-1 text-xs font-bold text-gray-700 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                    <Calendar className="h-3 w-3 text-gray-400" />
+                                    <span>{formatDate(vac.date)}</span>
+                                  </span>
+                                </div>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
