@@ -58,10 +58,11 @@ export default function ImageUploader({
           img.onload = () => {
             const canvas = document.createElement('canvas');
             
-            // Intelligently downscale based on whether it is a logo (branding) or a photograph
+            // Intelligently downscale based on whether it is a logo (branding), voucher/document, or a photograph
             const isBranding = folder === 'branding';
-            const MAX_WIDTH = isBranding ? 200 : 640;
-            const MAX_HEIGHT = isBranding ? 200 : 480;
+            const isVoucher = folder === 'vouchers' || folder === 'invoices';
+            const MAX_WIDTH = isBranding ? 200 : isVoucher ? 1200 : 640;
+            const MAX_HEIGHT = isBranding ? 200 : isVoucher ? 1600 : 480;
             
             let width = img.width;
             let height = img.height;
@@ -96,6 +97,9 @@ export default function ImageUploader({
               } else {
                 compressed = canvas.toDataURL('image/jpeg', 0.6);
               }
+            } else if (isVoucher) {
+              // Vouchers and invoices have text/numbers that need to be crisp and readable
+              compressed = canvas.toDataURL('image/jpeg', 0.75);
             } else {
               // Photographs do not need transparency, so convert them to highly optimized JPEG (0.55 quality is perfect)
               compressed = canvas.toDataURL('image/jpeg', 0.55);

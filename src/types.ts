@@ -77,6 +77,7 @@ export interface Expense {
   category: string;
   amount: number;
   description: string;
+  voucherUrl?: string;
 }
 
 export interface Income {
@@ -85,6 +86,7 @@ export interface Income {
   category: string;
   amount: number;
   description: string;
+  voucherUrl?: string;
 }
 
 export interface Product {
