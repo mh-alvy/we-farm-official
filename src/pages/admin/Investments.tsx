@@ -55,7 +55,10 @@ import {
   Search,
   Filter,
   Hash,
-  Sparkles
+  Sparkles,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { normalizePhone, getPhoneSearchVariants } from '../../lib/authSession';
@@ -272,6 +275,8 @@ export default function AdminInvestments() {
   const [filterProfitMonth, setFilterProfitMonth] = useState<string>('');
   const [onlyProfitEligible, setOnlyProfitEligible] = useState<boolean>(false);
   const [selectedInvestorIdFilter, setSelectedInvestorIdFilter] = useState<string | null>(null);
+  const [invSortBy, setInvSortBy] = useState<'id' | 'name' | 'date' | 'amount'>('id');
+  const [invSortOrder, setInvSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Group and assign permanent, stable Investor IDs (INV-001, INV-002, etc.)
   const investorIdMap = useMemo(() => {
@@ -306,9 +311,9 @@ export default function AdminInvestments() {
     return map;
   }, [investments]);
 
-  // Filtered Investments based on search, project, investor ID, and profit month eligibility
+  // Filtered & Sequentially Sorted Investments
   const filteredInvestments = useMemo(() => {
-    return investments.filter(inv => {
+    const list = investments.filter(inv => {
       const term = invSearchTerm.toLowerCase().trim();
       const key = getInvestorKey(inv);
       const invIdObj = investorIdMap.get(key);
@@ -339,7 +344,35 @@ export default function AdminInvestments() {
 
       return matchesSearch && matchesProject && matchesInvestorId && matchesProfitMonth;
     });
-  }, [investments, invSearchTerm, filterProjectId, filterProfitMonth, onlyProfitEligible, selectedInvestorIdFilter, investorIdMap, projects]);
+
+    return [...list].sort((a, b) => {
+      if (invSortBy === 'id') {
+        const keyA = getInvestorKey(a);
+        const keyB = getInvestorKey(b);
+        const idA = investorIdMap.get(keyA)?.id || '';
+        const idB = investorIdMap.get(keyB)?.id || '';
+        const cmp = idA.localeCompare(idB, undefined, { numeric: true });
+        if (cmp !== 0) {
+          return invSortOrder === 'asc' ? cmp : -cmp;
+        }
+        // If same investor, keep investments grouped chronologically by date
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        return dateA.localeCompare(dateB);
+      } else if (invSortBy === 'name') {
+        const cmp = (a.investorName || '').localeCompare(b.investorName || '');
+        return invSortOrder === 'asc' ? cmp : -cmp;
+      } else if (invSortBy === 'date') {
+        const cmp = (a.date || '').localeCompare(b.date || '');
+        return invSortOrder === 'asc' ? cmp : -cmp;
+      } else if (invSortBy === 'amount') {
+        const amtA = Number(a.amount) || 0;
+        const amtB = Number(b.amount) || 0;
+        return invSortOrder === 'asc' ? amtA - amtB : amtB - amtA;
+      }
+      return 0;
+    });
+  }, [investments, invSearchTerm, filterProjectId, filterProfitMonth, onlyProfitEligible, selectedInvestorIdFilter, investorIdMap, projects, invSortBy, invSortOrder]);
 
   const showPageBanner = (type: 'success' | 'error', text: string) => {
     setPageBanner({ type, text });
@@ -2600,11 +2633,107 @@ export default function AdminInvestments() {
                         className="rounded text-green-600 focus:ring-green-500 cursor-pointer h-4 w-4"
                       />
                     </th>
-                    <th className="px-4 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Investor ID</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Investor Details</th>
+                    <th
+                      onClick={() => {
+                        if (invSortBy === 'id') {
+                          setInvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setInvSortBy('id');
+                          setInvSortOrder('asc');
+                        }
+                      }}
+                      className="px-4 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      title="Click to sort sequentially by Investor ID"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Investor ID</span>
+                        {invSortBy === 'id' ? (
+                          invSortOrder === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-60 group-hover:opacity-100" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => {
+                        if (invSortBy === 'name') {
+                          setInvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setInvSortBy('name');
+                          setInvSortOrder('asc');
+                        }
+                      }}
+                      className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      title="Click to sort by Investor Name"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Investor Details</span>
+                        {invSortBy === 'name' ? (
+                          invSortOrder === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100" />
+                        )}
+                      </div>
+                    </th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Project & Batch</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date & Profit Start</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
+                    <th
+                      onClick={() => {
+                        if (invSortBy === 'date') {
+                          setInvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setInvSortBy('date');
+                          setInvSortOrder('desc');
+                        }
+                      }}
+                      className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      title="Click to sort by Date"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Date & Profit Start</span>
+                        {invSortBy === 'date' ? (
+                          invSortOrder === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => {
+                        if (invSortBy === 'amount') {
+                          setInvSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setInvSortBy('amount');
+                          setInvSortOrder('desc');
+                        }
+                      }}
+                      className="px-6 py-4 text-xs font-bold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      title="Click to sort by Amount"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Amount</span>
+                        {invSortBy === 'amount' ? (
+                          invSortOrder === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 text-green-600 stroke-[2.5]" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100" />
+                        )}
+                      </div>
+                    </th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Action</th>
                   </tr>
                 </thead>
