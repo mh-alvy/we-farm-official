@@ -297,7 +297,7 @@ async function sendAlphaNetSms(options: {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   let smsConfig = loadSmsConfig();
 
@@ -1040,7 +1040,9 @@ Do NOT add quotes, explanations, or extra commentary — output ONLY the final E
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = fs.existsSync(path.join(process.cwd(), "dist", "index.html"))
+      ? path.join(process.cwd(), "dist")
+      : (fs.existsSync(path.join(__dirname, "index.html")) ? __dirname : path.join(process.cwd(), "dist"));
     app.use(express.static(distPath));
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
