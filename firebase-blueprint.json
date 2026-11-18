@@ -1,0 +1,509 @@
+{
+  "entities": {
+    "cows": {
+      "title": "Cow",
+      "description": "Livestock details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Dairy", "Fattening", "Heifer"] },
+        "father": { "type": "string" },
+        "mother": { "type": "string" },
+        "age": { "type": "string" },
+        "teethCount": { "type": "number" },
+        "color": { "type": "string" },
+        "purchaseStatus": { "type": "string", "enum": ["Purchased", "Self Breed"] },
+        "date": { "type": "string", "format": "date" },
+        "purchasePrice": { "type": "number" },
+        "initialWeight": { "type": "number" },
+        "healthStatus": { "type": "string", "enum": ["Fit", "Unfit"] },
+        "healthDescription": { "type": "string" },
+        "healthFileUrl": { "type": "string" },
+        "dailyFoodConsumption": { "type": "number" },
+        "milkingStatus": { "type": "string", "enum": ["Milking Period", "Dry Period"] },
+        "dailyMilkSupply": { "type": "number" },
+        "pregnancy": { "type": "string", "enum": ["Pregnant", "With Baby", "Without Baby"] },
+        "lactationCount": { "type": "number" },
+        "breed": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "tagId": { "type": "string" }
+      },
+      "required": ["name", "category", "purchaseStatus", "date", "healthStatus"]
+    },
+    "expenses": {
+      "title": "Expense",
+      "description": "Daily farm expenses",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["date", "category", "amount"]
+    },
+    "incomes": {
+      "title": "Income",
+      "description": "Daily farm income",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["date", "category", "amount"]
+    },
+    "products": {
+      "title": "Product",
+      "description": "Farm products for sale",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["name", "price", "stock"]
+    },
+    "orders": {
+      "title": "Order",
+      "description": "Customer orders",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "productId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "shipped", "delivered"] },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["customerName", "productId", "quantity", "totalPrice"]
+    },
+    "investments": {
+      "title": "Investment",
+      "description": "Investor contributions",
+      "type": "object",
+      "properties": {
+        "investorUid": { "type": "string" },
+        "investorName": { "type": "string" },
+        "investorEmail": { "type": "string" },
+        "investorPhone": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectTitle": { "type": "string" },
+        "batchId": { "type": "string" },
+        "batchName": { "type": "string" },
+        "profitStartMonth": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["investorName", "projectId", "amount"]
+    },
+    "projects": {
+      "title": "Project",
+      "description": "Farm projects for investment",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "profitType": { "type": "string", "enum": ["monthly", "one_time"] },
+        "dryPeriodMonthsPerYear": { "type": "number" }
+      },
+      "required": ["title", "targetAmount"]
+    },
+    "batchProfitRates": {
+      "title": "Batch Monthly Profit Rate",
+      "description": "Monthly profit percentage configured for a project batch",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "batchId": { "type": "string" },
+        "month": { "type": "string" },
+        "profitPercentage": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["projectId", "batchId", "month", "profitPercentage"]
+    },
+    "investmentProfits": {
+      "title": "Investment Monthly Profit Record",
+      "description": "Per-investment monthly profit distribution and dry period record",
+      "type": "object",
+      "properties": {
+        "investmentId": { "type": "string" },
+        "investorUid": { "type": "string" },
+        "investorName": { "type": "string" },
+        "investorPhone": { "type": "string" },
+        "investorEmail": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectTitle": { "type": "string" },
+        "batchId": { "type": "string" },
+        "batchName": { "type": "string" },
+        "month": { "type": "string" },
+        "investedAmount": { "type": "number" },
+        "profitPercentage": { "type": "number" },
+        "profitAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Sent", "Dry Period"] },
+        "smsSentAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["investmentId", "projectId", "batchId", "month", "investedAmount", "profitAmount", "status"]
+    },
+    "settings": {
+      "title": "Site Settings",
+      "description": "Global site configuration",
+      "type": "object",
+      "properties": {
+        "hero": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "images": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "featuresSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "iconName": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "aboutSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" },
+            "imageUrl": { "type": "string" },
+            "primaryButtonText": { "type": "string" },
+            "secondaryButtonText": { "type": "string" }
+          }
+        },
+        "statsSection": {
+          "type": "object",
+          "properties": {
+            "stats": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": { "type": "string" },
+                  "label": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "aboutUsSection": {
+          "type": "object",
+          "properties": {
+            "promise": {
+              "type": "object",
+              "properties": {
+                "tagline": { "type": "string" },
+                "headline": { "type": "string" },
+                "description": { "type": "string" },
+                "imageUrl": { "type": "string" }
+              }
+            },
+            "vision": {
+              "type": "object",
+              "properties": {
+                "headline": { "type": "string" },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        },
+        "productsSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "investSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "contactSection": {
+          "type": "object",
+          "properties": {
+            "tagline": { "type": "string" },
+            "headline": { "type": "string" },
+            "description": { "type": "string" },
+            "info": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "text": { "type": "string" }
+                  }
+                },
+                "whatsapp": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "text": { "type": "string" }
+                  }
+                },
+                "email": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": "string" },
+                    "text": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "faqSection": {
+          "type": "object",
+          "properties": {
+            "headline": { "type": "string" },
+            "description": { "type": "string" },
+            "faqs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": { "type": "string" },
+                  "answer": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "users": {
+      "title": "User",
+      "description": "User profiles",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "investor"] },
+        "createdAt": { "type": "string" },
+        "investorProfile": {
+          "type": "object",
+          "properties": {
+            "dob": { "type": "string" },
+            "fatherName": { "type": "string" },
+            "motherName": { "type": "string" },
+            "gender": { "type": "string" },
+            "nidPassport": { "type": "string" },
+            "emergencyPhone": { "type": "string" },
+            "permanentAddress": { "type": "string" },
+            "currentAddress": { "type": "string" },
+            "occupation": { "type": "string" },
+            "organization": { "type": "string" },
+            "designation": { "type": "string" },
+            "bankName": { "type": "string" },
+            "branchName": { "type": "string" },
+            "accountName": { "type": "string" },
+            "accountNumber": { "type": "string" },
+            "routingNumber": { "type": "string" },
+            "nomineeName": { "type": "string" },
+            "nomineeRelation": { "type": "string" },
+            "nomineePhone": { "type": "string" },
+            "nomineeNid": { "type": "string" },
+            "nomineeNidFileUrl": { "type": "string" },
+            "nidFileUrl": { "type": "string" }
+          }
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "milkLogs": {
+      "title": "Milk Log",
+      "description": "Daily milking or consumption records",
+      "type": "object",
+      "properties": {
+        "cowId": { "type": "string" },
+        "cowName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "amount": { "type": "number" },
+        "unit": { "type": "string", "enum": ["Kg", "L"] },
+        "type": { "type": "string", "enum": ["Milking", "Consumption"] }
+      },
+      "required": ["cowId", "date", "amount", "unit", "type"]
+    },
+    "weightLogs": {
+      "title": "Weight Log",
+      "description": "Growth records",
+      "type": "object",
+      "properties": {
+        "cowId": { "type": "string" },
+        "cowName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "weight": { "type": "number" }
+      },
+      "required": ["cowId", "date", "weight"]
+    },
+    "vaccinationLogs": {
+      "title": "Vaccination Log",
+      "description": "Health records",
+      "type": "object",
+      "properties": {
+        "cowId": { "type": "string" },
+        "cowName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "vaccineName": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["cowId", "date", "vaccineName"]
+    },
+    "accounts": {
+      "title": "Ledger Account",
+      "description": "Accounts Receivable and Payable",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string" },
+        "personName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Client", "Customer", "Investor", "Owner / Partner", "Vendor / Supplier", "Employee", "Contractor", "Other"] },
+        "contactNumber": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "transactionType": { "type": "string", "enum": ["Receivable", "Payable"] },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "referenceNumber": { "type": "string" },
+        "attachmentUrl": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "currentStatus": { "type": "string", "enum": ["Pending", "Partially Paid", "Fully Settled", "Cancelled"] },
+        "isArchived": { "type": "boolean" },
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "amount": { "type": "number" },
+              "date": { "type": "string", "format": "date" },
+              "paymentMethod": { "type": "string" },
+              "referenceNumber": { "type": "string" },
+              "notes": { "type": "string" },
+              "processedBy": { "type": "string" }
+            },
+            "required": ["id", "amount", "date", "paymentMethod", "processedBy"]
+          }
+        }
+      },
+      "required": ["transactionId", "personName", "category", "contactNumber", "transactionType", "amount", "dueDate", "createdBy", "createdAt", "updatedAt", "currentStatus"]
+    },
+    "dailyMilkEntries": {
+      "title": "Daily Milk Entry",
+      "description": "Daily morning and evening milk production inventory",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "morningAmount": { "type": "number" },
+        "eveningAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["date", "morningAmount", "eveningAmount", "totalAmount"]
+    },
+    "smsConfig": {
+      "title": "SMS Gateway Config",
+      "description": "Alpha Net SMS gateway settings and OTP message format",
+      "type": "object",
+      "properties": {
+        "apiKey": { "type": "string" },
+        "senderId": { "type": "string" },
+        "defaultContentId": { "type": "string" },
+        "otpTemplate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["apiKey", "otpTemplate"]
+    },
+    "smsTemplates": {
+      "title": "SMS Template",
+      "description": "Reusable SMS message templates for admin dispatches",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["General", "Investor Update", "Payment / Profit", "Order / Delivery", "OTP / Auth"] },
+        "content": { "type": "string" },
+        "contentId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "category", "content", "createdAt"]
+    },
+    "smsLogs": {
+      "title": "SMS Log",
+      "description": "History of sent SMS messages and delivery reports",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "recipients": { "type": "array", "items": { "type": "string" } },
+        "recipientCount": { "type": "number" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["otp", "bulk", "single", "scheduled"] },
+        "status": { "type": "string", "enum": ["Submitted", "Complete", "Processing", "Scheduled", "Failed"] },
+        "charge": { "type": "string" },
+        "errorCode": { "type": "number" },
+        "errorMessage": { "type": "string" },
+        "senderId": { "type": "string" },
+        "contentId": { "type": "string" },
+        "schedule": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["recipients", "recipientCount", "message", "type", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/cows/{cowId}": { "schema": "cows", "description": "Cow documents" },
+    "/expenses/{expenseId}": { "schema": "expenses", "description": "Expense documents" },
+    "/incomes/{incomeId}": { "schema": "incomes", "description": "Income documents" },
+    "/products/{productId}": { "schema": "products", "description": "Product documents" },
+    "/orders/{orderId}": { "schema": "orders", "description": "Order documents" },
+    "/investments/{investmentId}": { "schema": "investments", "description": "Investment documents" },
+    "/projects/{projectId}": { "schema": "projects", "description": "Project documents" },
+    "/users/{userId}": { "schema": "users", "description": "User documents" },
+    "/settings/{settingId}": { "schema": "settings", "description": "Site configuration" },
+    "/milkLogs/{logId}": { "schema": "milkLogs", "description": "Milk records" },
+    "/weightLogs/{weightId}": { "schema": "weightLogs", "description": "Weight records" },
+    "/vaccinationLogs/{vaccId}": { "schema": "vaccinationLogs", "description": "Vaccination records" },
+    "/accounts/{accountId}": { "schema": "accounts", "description": "Ledger Accounts Receivable & Payable" },
+    "/dailyMilkEntries/{entryId}": { "schema": "dailyMilkEntries", "description": "Daily morning and evening milk production records" },
+    "/smsConfig/{configId}": { "schema": "smsConfig", "description": "Admin SMS gateway configuration" },
+    "/smsTemplates/{templateId}": { "schema": "smsTemplates", "description": "Reusable SMS message templates" },
+    "/smsLogs/{logId}": { "schema": "smsLogs", "description": "SMS dispatch history and delivery reports" },
+    "/batchProfitRates/{rateId}": { "schema": "batchProfitRates", "description": "Batch monthly profit percentages" },
+    "/investmentProfits/{profitId}": { "schema": "investmentProfits", "description": "Investor monthly profit and dry period records" }
+  }
+}

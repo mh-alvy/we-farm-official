@@ -1,0 +1,65 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import AdminLayout from './components/AdminLayout';
+
+import MainPage from './pages/MainPage';
+import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
+import ProjectDetails from './pages/ProjectDetails';
+
+// Admin Pages
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminCows from './pages/admin/Cows';
+import AdminFinances from './pages/admin/Finances';
+import AdminAccounts from './pages/admin/Accounts';
+import AdminInventory from './pages/admin/Inventory';
+import AdminOrders from './pages/admin/Orders';
+import AdminInvestments from './pages/admin/Investments';
+import AdminProjects from './pages/admin/Projects';
+
+import UserProfile from './pages/Profile';
+import AdminUsers from './pages/admin/Users';
+import AdminSiteSettings from './pages/admin/SiteSettings';
+import AdminIslamicAnnouncementSettings from './pages/admin/IslamicAnnouncementSettings';
+import AdminInvestmentRequests from './pages/admin/InvestmentRequests';
+import AdminSmsManager from './pages/admin/SmsManager';
+import AdminMyInvestment from './pages/admin/MyInvestment';
+
+import { LanguageProvider } from './lib/LanguageContext';
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Layout />}>
+          <Route index element={<MainPage />} />
+          <Route path="login" element={<Login />} />
+          <Route path="admin-login" element={<AdminLogin />} />
+          <Route path="profile" element={<UserProfile />} />
+          <Route path="project/:id" element={<ProjectDetails />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="cows" element={<AdminCows />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="settings" element={<AdminSiteSettings />} />
+          <Route path="islamic-bar" element={<AdminIslamicAnnouncementSettings />} />
+          <Route path="finances" element={<AdminFinances />} />
+          <Route path="accounts" element={<AdminAccounts />} />
+          <Route path="inventory" element={<AdminInventory />} />
+          <Route path="orders" element={<AdminOrders />} />
+          <Route path="investments" element={<AdminInvestments />} />
+          <Route path="my-investment" element={<AdminMyInvestment />} />
+          <Route path="investment-requests" element={<AdminInvestmentRequests />} />
+          <Route path="sms" element={<AdminSmsManager />} />
+          <Route path="projects" element={<AdminProjects />} />
+        </Route>
+      </Routes>
+    </Router>
+    </LanguageProvider>
+  );
+}

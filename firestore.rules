@@ -1,0 +1,182 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Global Deny
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isSuperAdminEmail() {
+      return isSignedIn() &&
+        ('email' in request.auth.token) &&
+        request.auth.token.email == "alvymahamudulhasan@gmail.com";
+    }
+
+    function isAdminEmail() {
+      return isSignedIn() &&
+        ('email' in request.auth.token) && (
+          request.auth.token.email == "alvymahamudulhasan@gmail.com" ||
+          request.auth.token.email == "mhalvytech24@gmil.com" ||
+          request.auth.token.email == "mhalvytech24@gmail.com"
+        );
+    }
+
+    function isSuperAdmin() {
+      return isSuperAdminEmail() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
+      );
+    }
+
+    function isAdmin() {
+      return isAdminEmail() || isSuperAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    // ===============================================================
+    // Routes
+    // ===============================================================
+
+    match /users/{userId} {
+      // Evaluate cheap/safe checks (isOwner, resource == null, investor role) BEFORE get()-based isAdmin()
+      allow read: if isOwner(userId) ||
+        resource == null ||
+        !('role' in resource.data) ||
+        resource.data.role == 'investor' ||
+        isAdmin();
+
+      // Allow Admins, Super Admins, Owners creating their own profile, or Phone-OTP investor registration
+      allow create: if isOwner(userId) ||
+        !('role' in request.resource.data) ||
+        request.resource.data.role == 'investor' ||
+        isAdmin();
+
+      // Standard profile updates cannot escalate role unless Super Admin
+      allow update: if (
+        (!('role' in resource.data) || request.resource.data.role == resource.data.role) && (
+          isOwner(userId) ||
+          !('role' in resource.data) ||
+          resource.data.role == 'investor' ||
+          isAdmin()
+        )
+      ) || isSuperAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    match /cows/{cowId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /deletedCows/{cowId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /milkLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /weightLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /vaccinationLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /incomes/{incomeId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nameBn', 'descriptionBn']);
+    }
+
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentAmount', 'titleBn', 'descriptionBn']);
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (
+        isSignedIn() &&
+        ('email' in request.auth.token) &&
+        request.auth.token.email == resource.data.customerEmail
+      );
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /investments/{investmentId} {
+      allow read: if true;
+      allow create: if request.resource.data.amount is number && request.resource.data.amount >= 0;
+      allow update, delete: if isAdmin();
+    }
+
+    match /investmentRequests/{requestId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true;
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /accounts/{accountId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /dailyMilkEntries/{entryId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /smsConfig/{configId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /smsTemplates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /smsLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /batchProfitRates/{rateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /investmentProfits/{profitId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
