@@ -51,7 +51,11 @@ import {
   Clock,
   Ban,
   Calculator,
-  Plus
+  Plus,
+  Search,
+  Filter,
+  Hash,
+  Sparkles
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { normalizePhone, getPhoneSearchVariants } from '../../lib/authSession';
@@ -151,6 +155,39 @@ export const formatMonthLabel = (ym?: string): string => {
   return `${monthNames[mIdx] || m} ${y}`;
 };
 
+export const getEffectiveStartMonth = (inv: { profitStartMonth?: string; date?: string }): string => {
+  if (inv.profitStartMonth && inv.profitStartMonth.includes('-')) {
+    return inv.profitStartMonth;
+  }
+  if (inv.date) {
+    try {
+      return new Date(inv.date).toISOString().slice(0, 7);
+    } catch {
+      return inv.date.slice(0, 7);
+    }
+  }
+  return getCurrentYearMonth();
+};
+
+export const isEligibleForMonth = (inv: { profitStartMonth?: string; date?: string }, targetMonth: string): boolean => {
+  const startYm = getEffectiveStartMonth(inv);
+  return monthToIndex(targetMonth) >= monthToIndex(startYm);
+};
+
+export const getInvestorKey = (inv: { investorPhone?: string; investorEmail?: string; investorUid?: string; investorName?: string }): string => {
+  if (inv.investorUid && inv.investorUid.trim()) {
+    return `uid:${inv.investorUid.trim()}`;
+  }
+  const normPhone = inv.investorPhone ? normalizePhone(inv.investorPhone) : '';
+  if (normPhone && normPhone.length >= 10) {
+    return `phone:${normPhone}`;
+  }
+  if (inv.investorEmail && inv.investorEmail.trim()) {
+    return `email:${inv.investorEmail.trim().toLowerCase()}`;
+  }
+  return `name:${inv.investorName?.trim().toLowerCase() || 'unknown'}`;
+};
+
 export default function AdminInvestments() {
   const [activePageTab, setActivePageTab] = useState<'investments' | 'monthly_profit'>('investments');
 
@@ -228,6 +265,81 @@ export default function AdminInvestments() {
   const [updatingProfitId, setUpdatingProfitId] = useState<string | null>(null);
   const [customProfitAmounts, setCustomProfitAmounts] = useState<Record<string, string>>({});
   const [profitBanner, setProfitBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Filters & Investor ID States for Investments tab
+  const [invSearchTerm, setInvSearchTerm] = useState('');
+  const [filterProjectId, setFilterProjectId] = useState<string>('all');
+  const [filterProfitMonth, setFilterProfitMonth] = useState<string>('');
+  const [onlyProfitEligible, setOnlyProfitEligible] = useState<boolean>(false);
+  const [selectedInvestorIdFilter, setSelectedInvestorIdFilter] = useState<string | null>(null);
+
+  // Group and assign permanent, stable Investor IDs (INV-001, INV-002, etc.)
+  const investorIdMap = useMemo(() => {
+    const earliestDateByKey: Record<string, string> = {};
+    const countByKey: Record<string, number> = {};
+
+    for (const inv of investments) {
+      const key = getInvestorKey(inv);
+      countByKey[key] = (countByKey[key] || 0) + 1;
+      const invDate = inv.date || '9999-99-99';
+      if (!earliestDateByKey[key] || invDate < earliestDateByKey[key]) {
+        earliestDateByKey[key] = invDate;
+      }
+    }
+
+    // Sort chronologically so earliest investors get INV-001, INV-002...
+    const sortedKeys = Object.keys(earliestDateByKey).sort((a, b) => {
+      const cmp = earliestDateByKey[a].localeCompare(earliestDateByKey[b]);
+      if (cmp !== 0) return cmp;
+      return a.localeCompare(b);
+    });
+
+    const map = new Map<string, { id: string; count: number }>();
+    sortedKeys.forEach((key, idx) => {
+      const seq = (idx + 1).toString().padStart(3, '0');
+      map.set(key, {
+        id: `INV-${seq}`,
+        count: countByKey[key] || 1
+      });
+    });
+
+    return map;
+  }, [investments]);
+
+  // Filtered Investments based on search, project, investor ID, and profit month eligibility
+  const filteredInvestments = useMemo(() => {
+    return investments.filter(inv => {
+      const term = invSearchTerm.toLowerCase().trim();
+      const key = getInvestorKey(inv);
+      const invIdObj = investorIdMap.get(key);
+      const invIdStr = invIdObj ? invIdObj.id.toLowerCase() : '';
+
+      const matchesSearch = !term || (
+        (inv.investorName && inv.investorName.toLowerCase().includes(term)) ||
+        (inv.investorPhone && inv.investorPhone.toLowerCase().includes(term)) ||
+        (inv.investorEmail && inv.investorEmail.toLowerCase().includes(term)) ||
+        (inv.projectTitle && inv.projectTitle.toLowerCase().includes(term)) ||
+        (inv.batchName && inv.batchName.toLowerCase().includes(term)) ||
+        invIdStr.includes(term)
+      );
+
+      const matchesProject = filterProjectId === 'all' || inv.projectId === filterProjectId;
+
+      const matchesInvestorId = !selectedInvestorIdFilter || (invIdObj && invIdObj.id === selectedInvestorIdFilter);
+
+      let matchesProfitMonth = true;
+      if (filterProfitMonth) {
+        const projObj = projects.find(p => p.id === inv.projectId);
+        const isMonthly = projObj ? (projObj.profitType || 'monthly') === 'monthly' : Boolean(inv.profitStartMonth);
+        const isEligible = isMonthly && isEligibleForMonth(inv, filterProfitMonth);
+        if (onlyProfitEligible) {
+          matchesProfitMonth = isEligible;
+        }
+      }
+
+      return matchesSearch && matchesProject && matchesInvestorId && matchesProfitMonth;
+    });
+  }, [investments, invSearchTerm, filterProjectId, filterProfitMonth, onlyProfitEligible, selectedInvestorIdFilter, investorIdMap, projects]);
 
   const showPageBanner = (type: 'success' | 'error', text: string) => {
     setPageBanner({ type, text });
@@ -1104,27 +1216,6 @@ export default function AdminInvestments() {
       return true;
     });
   }, [investments, profitProjectId, profitBatchId]);
-
-  // Helper: get effective profit start month for an investment
-  const getEffectiveStartMonth = (inv: Investment): string => {
-    if (inv.profitStartMonth && inv.profitStartMonth.includes('-')) {
-      return inv.profitStartMonth;
-    }
-    if (inv.date) {
-      try {
-        return new Date(inv.date).toISOString().slice(0, 7);
-      } catch {
-        return inv.date.slice(0, 7);
-      }
-    }
-    return getCurrentYearMonth();
-  };
-
-  // Helper: check if an investment is eligible for profit in `profitMonth`
-  const isEligibleForMonth = (inv: Investment, targetMonth: string): boolean => {
-    const startYm = getEffectiveStartMonth(inv);
-    return monthToIndex(targetMonth) >= monthToIndex(startYm);
-  };
 
   // Helper: calculate 12-month Dry Period usage for an investment around `targetMonth`
   const getDryPeriodUsage = (inv: Investment, targetMonth: string) => {
@@ -2316,18 +2407,192 @@ export default function AdminInvestments() {
             )}
           </div>
 
+          {/* Enhanced Search, Project Filter & Profit Month Filter Bar */}
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              {/* Search Field */}
+              <div className="md:col-span-5 relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by Investor ID (e.g. INV-001), Name, Phone, Email..."
+                  value={invSearchTerm}
+                  onChange={(e) => setInvSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm focus:bg-white focus:ring-2 focus:ring-green-500 outline-none"
+                />
+                {invSearchTerm && (
+                  <button
+                    onClick={() => setInvSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Project Filter */}
+              <div className="md:col-span-4">
+                <div className="relative">
+                  <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <select
+                    value={filterProjectId}
+                    onChange={(e) => setFilterProjectId(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none cursor-pointer"
+                  >
+                    <option value="all">All Projects (সকল প্রোজেক্ট - {investments.length})</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.title} ({investments.filter(i => i.projectId === p.id).length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Profit Month Filter Field */}
+              <div className="md:col-span-3">
+                <div className="relative flex items-center">
+                  <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600 pointer-events-none" />
+                  <input
+                    type="month"
+                    value={filterProfitMonth}
+                    onChange={(e) => {
+                      setFilterProfitMonth(e.target.value);
+                      if (e.target.value) setOnlyProfitEligible(true);
+                    }}
+                    title="Filter by profit eligibility month"
+                    className={`w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-xl text-xs font-bold focus:bg-white focus:ring-2 outline-none cursor-pointer ${
+                      filterProfitMonth ? 'border-emerald-400 text-emerald-900 bg-emerald-50/40 ring-1 ring-emerald-300' : 'border-gray-200 text-gray-700 focus:ring-green-500'
+                    }`}
+                  />
+                  {filterProfitMonth && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilterProfitMonth('');
+                        setOnlyProfitEligible(false);
+                      }}
+                      className="absolute right-2 text-xs text-gray-400 hover:text-red-600 font-bold px-1"
+                      title="Clear Month Filter"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Profit Month Quick Actions & Filter Pills */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-gray-400 font-bold uppercase text-[10px] tracking-wider">
+                  Quick Month Filter:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentYm = getCurrentYearMonth();
+                    setFilterProfitMonth(currentYm);
+                    setOnlyProfitEligible(true);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                    filterProfitMonth === getCurrentYearMonth()
+                      ? 'bg-emerald-600 text-white border-emerald-700'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  চলতি মাস ({formatMonthLabel(getCurrentYearMonth())})
+                </button>
+
+                {filterProfitMonth && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyProfitEligible(!onlyProfitEligible)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                      onlyProfitEligible
+                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
+                        : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                    }`}
+                  >
+                    {onlyProfitEligible
+                      ? `✓ শুধুমাত্র ${formatMonthLabel(filterProfitMonth)} এ প্রফিট প্রাপ্যরা (Filtered)`
+                      : `সকল বিনিয়োগসহ দেখুন`}
+                  </button>
+                )}
+
+                {selectedInvestorIdFilter && (
+                  <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    <span>Investor: {selectedInvestorIdFilter}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInvestorIdFilter(null)}
+                      className="ml-1 text-indigo-600 hover:text-indigo-900 font-bold"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              {(invSearchTerm || filterProjectId !== 'all' || filterProfitMonth || selectedInvestorIdFilter) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvSearchTerm('');
+                    setFilterProjectId('all');
+                    setFilterProfitMonth('');
+                    setOnlyProfitEligible(false);
+                    setSelectedInvestorIdFilter(null);
+                  }}
+                  className="text-xs font-bold text-red-600 hover:underline"
+                >
+                  Reset All Filters
+                </button>
+              )}
+            </div>
+
+            {/* Profit Eligibility Highlight Banner when month is chosen */}
+            {filterProfitMonth && (
+              <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center space-x-2 text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>
+                    <strong>{formatMonthLabel(filterProfitMonth)}</strong> মাসে মোট{' '}
+                    <strong className="text-emerald-800 font-extrabold text-sm">
+                      {investments.filter(inv => {
+                        const p = projects.find(x => x.id === inv.projectId);
+                        return (p?.profitType || 'monthly') === 'monthly' && isEligibleForMonth(inv, filterProfitMonth);
+                      }).length}
+                    </strong>{' '}
+                    জন ইনভেস্টর প্রফিট পাওয়ার উপযুক্ত (প্রোজেক্ট সেটিংস অনুযায়ী)।
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfitMonth(filterProfitMonth);
+                    setActivePageTab('monthly_profit');
+                  }}
+                  className="self-start sm:self-auto px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold transition-all whitespace-nowrap shadow-xs"
+                >
+                  মাসিক প্রফিট ও SMS ম্যানেজারে যান &rarr;
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-center w-12">
+                    <th className="px-4 py-4 text-center w-12">
                       <input
                         type="checkbox"
-                        checked={investments.length > 0 && selectedInvIds.length === investments.length}
+                        checked={filteredInvestments.length > 0 && selectedInvIds.length === filteredInvestments.length}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedInvIds(investments.map(inv => inv.id!));
+                            setSelectedInvIds(filteredInvestments.map(inv => inv.id!));
                           } else {
                             setSelectedInvIds([]);
                           }
@@ -2335,7 +2600,8 @@ export default function AdminInvestments() {
                         className="rounded text-green-600 focus:ring-green-500 cursor-pointer h-4 w-4"
                       />
                     </th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Investor</th>
+                    <th className="px-4 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Investor ID</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Investor Details</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Project & Batch</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date & Profit Start</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
@@ -2345,27 +2611,50 @@ export default function AdminInvestments() {
                 <tbody className="divide-y divide-gray-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center">
+                      <td colSpan={7} className="px-6 py-12 text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
                       </td>
                     </tr>
-                  ) : investments.length === 0 ? (
+                  ) : filteredInvestments.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                        No investments recorded yet.
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        {invSearchTerm || filterProjectId !== 'all' || filterProfitMonth || selectedInvestorIdFilter ? (
+                          <div>
+                            <p className="font-semibold text-gray-700">কোনো বিনিয়োগ এই ফিল্টারের সাথে মিলেনি।</p>
+                            <button
+                              onClick={() => {
+                                setInvSearchTerm('');
+                                setFilterProjectId('all');
+                                setFilterProfitMonth('');
+                                setOnlyProfitEligible(false);
+                                setSelectedInvestorIdFilter(null);
+                              }}
+                              className="mt-2 text-xs font-bold text-green-600 hover:underline"
+                            >
+                              সকল ফিল্টার রিসেট করুন
+                            </button>
+                          </div>
+                        ) : (
+                          'No investments recorded yet.'
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    investments.map(inv => {
+                    filteredInvestments.map(inv => {
                       const projObj = projects.find(p => p.id === inv.projectId);
                       const isMonthly = projObj ? (projObj.profitType || 'monthly') === 'monthly' : Boolean(inv.profitStartMonth);
+                      const investorKey = getInvestorKey(inv);
+                      const invIdObj = investorIdMap.get(investorKey);
+                      const startYm = getEffectiveStartMonth(inv);
+                      const isProfitEligibleInSelected = filterProfitMonth ? (isMonthly && isEligibleForMonth(inv, filterProfitMonth)) : false;
+
                       return (
                         <tr
                           key={inv.id}
                           className="hover:bg-gray-50 transition-colors cursor-pointer"
                           onClick={() => handleViewInvestor(inv)}
                         >
-                          <td className="px-6 py-4 text-center w-12" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-4 py-4 text-center w-12" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
                               checked={selectedInvIds.includes(inv.id!)}
@@ -2379,9 +2668,33 @@ export default function AdminInvestments() {
                               className="rounded text-green-600 focus:ring-green-500 cursor-pointer h-4 w-4"
                             />
                           </td>
+
+                          {/* Investor ID Column */}
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex flex-col items-start space-y-1">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedInvestorIdFilter(prev => prev === invIdObj?.id ? null : (invIdObj?.id || null))}
+                                className={`font-mono text-xs font-extrabold px-2 py-0.5 rounded-lg border transition-all ${
+                                  selectedInvestorIdFilter === invIdObj?.id
+                                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
+                                    : 'bg-gray-100 hover:bg-indigo-50 text-gray-800 hover:text-indigo-700 border-gray-200'
+                                }`}
+                                title="Click to filter all investments by this investor ID"
+                              >
+                                {invIdObj?.id || 'INV-001'}
+                              </button>
+                              {invIdObj && invIdObj.count > 1 && (
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100 whitespace-nowrap">
+                                  {invIdObj.count} investments
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center shrink-0">
                                 <User className="h-4 w-4 text-amber-600" />
                               </div>
                               <div>
@@ -2408,6 +2721,7 @@ export default function AdminInvestments() {
                               </div>
                             </div>
                           </td>
+
                           <td className="px-6 py-4">
                             <div className="space-y-1">
                               <div className="flex items-center space-x-2">
@@ -2433,18 +2747,39 @@ export default function AdminInvestments() {
                               </div>
                             </div>
                           </td>
+
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-700 font-medium">{formatDate(inv.date)}</div>
                             {isMonthly && (
                               <div className="text-[11px] font-bold text-emerald-700 mt-0.5 flex items-center space-x-1">
                                 <CalendarClock className="h-3 w-3" />
-                                <span>প্রফিট শুরু: {formatMonthLabel(getEffectiveStartMonth(inv))}</span>
+                                <span>প্রফিট শুরু: {formatMonthLabel(startYm)}</span>
+                              </div>
+                            )}
+                            {filterProfitMonth && (
+                              <div className="mt-1">
+                                {isProfitEligibleInSelected ? (
+                                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <Check className="h-3 w-3 text-emerald-600" />
+                                    <span>{formatMonthLabel(filterProfitMonth)} এ প্রফিট প্রাপ্য</span>
+                                  </span>
+                                ) : !isMonthly ? (
+                                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    <span>এককালীন / মেয়াদান্তে</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500">
+                                    <span>প্রফিট শুরু হয়নি ({formatMonthLabel(startYm)})</span>
+                                  </span>
+                                )}
                               </div>
                             )}
                           </td>
+
                           <td className="px-6 py-4 text-sm font-bold text-green-600">
                             {formatCurrency(inv.amount)}
                           </td>
+
                           <td className="px-6 py-4 text-right">
                             <div
                               className="flex items-center justify-end space-x-1"
@@ -2910,7 +3245,23 @@ export default function AdminInvestments() {
                         {(selectedInvestor.name || 'I').charAt(0)}
                       </div>
                       <div>
-                        <h4 className="text-xl font-bold text-gray-900">{selectedInvestor.name}</h4>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-xl font-bold text-gray-900">{selectedInvestor.name}</h4>
+                          {(() => {
+                            const key = getInvestorKey({
+                              investorPhone: selectedInvestor.phone,
+                              investorEmail: selectedInvestor.email,
+                              investorUid: selectedInvestor.uid,
+                              investorName: selectedInvestor.name
+                            });
+                            const invObj = investorIdMap.get(key);
+                            return invObj ? (
+                              <span className="font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-2xs">
+                                {invObj.id} ({invObj.count} investments)
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
                           {selectedInvestor.phone && (
                             <span className="flex items-center font-bold text-green-700">

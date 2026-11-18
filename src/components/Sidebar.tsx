@@ -15,7 +15,8 @@ import {
   BookOpen,
   FileText,
   MessageSquare,
-  Briefcase
+  Briefcase,
+  Pill
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -31,6 +32,7 @@ export default function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps)
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Livestock (Cows)', path: '/admin/cows', icon: Beef },
+    { name: 'Food & Medicine Stock', path: '/admin/food-medicine-stock', icon: Pill },
     { name: 'Administration', path: '/admin/users', icon: Users },
     { name: 'My Investment', path: '/admin/my-investment', icon: Briefcase },
     { name: 'Finances', path: '/admin/finances', icon: Wallet },

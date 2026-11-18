@@ -10,6 +10,7 @@ import ProjectDetails from './pages/ProjectDetails';
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminCows from './pages/admin/Cows';
+import FoodMedicineStock from './pages/admin/FoodMedicineStock';
 import AdminFinances from './pages/admin/Finances';
 import AdminAccounts from './pages/admin/Accounts';
 import AdminInventory from './pages/admin/Inventory';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="cows" element={<AdminCows />} />
+          <Route path="food-medicine-stock" element={<FoodMedicineStock />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="settings" element={<AdminSiteSettings />} />
           <Route path="islamic-bar" element={<AdminIslamicAnnouncementSettings />} />

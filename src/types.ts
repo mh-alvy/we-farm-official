@@ -451,3 +451,37 @@ export interface SmsLog {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface StockItem {
+  id?: string;
+  name: string;
+  nameBn?: string;
+  type: 'Food' | 'Medicine';
+  category?: string;
+  unit: string;
+  quantity: number;
+  minThreshold?: number;
+  costPerUnit?: number;
+  supplier?: string;
+  expiryDate?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockLog {
+  id?: string;
+  itemId: string;
+  itemName: string;
+  itemType: 'Food' | 'Medicine';
+  action: 'increase' | 'decrease';
+  amount: number;
+  previousQuantity: number;
+  newQuantity: number;
+  unit: string;
+  comment?: string;
+  date: string;
+  createdAt: string;
+  performedBy?: string;
+}
+

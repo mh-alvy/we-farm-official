@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, deleteDoc, doc, updateDoc, query, where, orderBy, setDoc, onSnapshot, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Cow, MilkLog, WeightLog, VaccinationLog } from '../../types';
-import { Plus, Search, Download, Trash2, Edit2, X, Beef, Calendar, DollarSign, Activity, Droplets, Weight, TrendingUp as TrendingUpIcon, ChevronRight, ChevronDown, RotateCcw, AlertTriangle, ShieldCheck, Thermometer, Info } from 'lucide-react';
+import { Plus, Search, Download, Trash2, Edit2, X, Beef, Calendar, DollarSign, Activity, Droplets, Weight, TrendingUp as TrendingUpIcon, ChevronRight, ChevronDown, RotateCcw, AlertTriangle, ShieldCheck, Thermometer, Info, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { formatCurrency, formatDate, exportToCSV } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -32,6 +32,10 @@ export default function AdminCows() {
   const [isCustomBreed, setIsCustomBreed] = useState(false);
   const [customBreedValue, setCustomBreedValue] = useState('');
   const [expandedCowId, setExpandedCowId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<'All' | 'Dairy' | 'Fattening' | 'Heifer'>('All');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<'id' | 'name' | 'date'>('id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const toggleExpandCow = (cowId: string) => {
     setExpandedCowId(prev => (prev === cowId ? null : cowId));
@@ -482,10 +486,88 @@ export default function AdminCows() {
     });
   };
 
-  const filteredCows = cows.filter(cow => 
-    cow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cow.vaccination.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getSequenceFromTag = (tag?: string) => {
+    if (!tag) return 999999;
+    const parts = tag.split('-');
+    if (parts.length >= 3) {
+      const num = parseInt(parts[2], 10);
+      if (!isNaN(num)) return num;
+    }
+    const match = tag.match(/(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num)) return num;
+    }
+    return 999999;
+  };
+
+  const filteredCows = cows
+    .filter(cow => {
+      // 1. Search term filter across all relevant fields
+      const term = searchTerm.toLowerCase().trim();
+      const matchesSearch = !term || (
+        (cow.name && cow.name.toLowerCase().includes(term)) ||
+        (cow.tagId && cow.tagId.toLowerCase().includes(term)) ||
+        (cow.id && cow.id.toLowerCase().includes(term)) ||
+        (cow.category && cow.category.toLowerCase().includes(term)) ||
+        (cow.breed && cow.breed.toLowerCase().includes(term)) ||
+        (cow.vaccination && cow.vaccination.toLowerCase().includes(term)) ||
+        (cow.healthStatus && cow.healthStatus.toLowerCase().includes(term)) ||
+        (cow.milkingStatus && cow.milkingStatus.toLowerCase().includes(term)) ||
+        (cow.pregnancy && cow.pregnancy.toLowerCase().includes(term))
+      );
+
+      // 2. Category filter
+      const matchesCategory = categoryFilter === 'All' || cow.category === categoryFilter;
+
+      // 3. Status filter
+      let matchesStatus = true;
+      if (statusFilter !== 'All') {
+        if (statusFilter === 'Milking Period' || statusFilter === 'Dry Period') {
+          matchesStatus = cow.milkingStatus === statusFilter;
+        } else if (statusFilter === 'Pregnant') {
+          matchesStatus = cow.pregnancy === 'Pregnant';
+        } else if (statusFilter === 'Fit' || statusFilter === 'Unfit') {
+          matchesStatus = cow.healthStatus === statusFilter;
+        }
+      }
+
+      return matchesSearch && matchesCategory && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Sequential sorting by ID / Tag ID
+      if (sortBy === 'id') {
+        const seqA = getSequenceFromTag(a.tagId);
+        const seqB = getSequenceFromTag(b.tagId);
+        if (seqA !== seqB) {
+          return sortOrder === 'asc' ? seqA - seqB : seqB - seqA;
+        }
+        const tagA = a.tagId || a.id || '';
+        const tagB = b.tagId || b.id || '';
+        return sortOrder === 'asc' 
+          ? tagA.localeCompare(tagB, undefined, { numeric: true }) 
+          : tagB.localeCompare(tagA, undefined, { numeric: true });
+      } else if (sortBy === 'name') {
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      } else if (sortBy === 'date') {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        return sortOrder === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      }
+      return 0;
+    });
+
+  const isFilterActive = searchTerm !== '' || categoryFilter !== 'All' || statusFilter !== 'All' || sortBy !== 'id' || sortOrder !== 'asc';
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setCategoryFilter('All');
+    setStatusFilter('All');
+    setSortBy('id');
+    setSortOrder('asc');
+  };
 
   return (
     <div className="space-y-6">
@@ -531,17 +613,119 @@ export default function AdminCows() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+      {/* Search and Filters Section */}
+      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+        {/* Top row: Search input */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by name or vaccination status..."
+            placeholder="Search by ID (e.g. WF-121-001), Name, Breed, Vaccination status..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200/60 rounded-xl focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Filter controls row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center mr-1">
+              <Filter className="h-3.5 w-3.5 mr-1" />
+              Category:
+            </span>
+            {(['All', 'Dairy', 'Fattening', 'Heifer'] as const).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  categoryFilter === cat
+                    ? 'bg-green-600 text-white shadow-xs'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {cat}
+                {cat !== 'All' && (
+                  <span className={`ml-1.5 text-[10px] px-1.5 py-0.2 rounded-full ${
+                    categoryFilter === cat ? 'bg-green-700 text-white' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {cows.filter(c => c.category === cat).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status Filter */}
+            <div className="flex items-center space-x-1.5">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:inline">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+                <option value="All">All Status</option>
+                <option value="Milking Period">Milking Period (দুধ প্রদানকারী)</option>
+                <option value="Dry Period">Dry Period (দুগ্ধহীন)</option>
+                <option value="Pregnant">Pregnant (গর্ভবতী)</option>
+                <option value="Fit">Health: Fit</option>
+                <option value="Unfit">Health: Unfit</option>
+              </select>
+            </div>
+
+            {/* Sort Order Selector */}
+            <div className="flex items-center space-x-1.5">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:inline">Sort:</span>
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [b, o] = e.target.value.split('-') as [any, any];
+                  setSortBy(b);
+                  setSortOrder(o);
+                }}
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+                <option value="id-asc">ID: 001 → 005 (Sequential)</option>
+                <option value="id-desc">ID: 005 → 001 (Reverse)</option>
+                <option value="name-asc">Name (A → Z)</option>
+                <option value="name-desc">Name (Z → A)</option>
+                <option value="date-desc">Date (Newest First)</option>
+                <option value="date-asc">Date (Oldest First)</option>
+              </select>
+            </div>
+
+            {isFilterActive && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-200"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Results summary line */}
+        <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+          <span>
+            Showing <strong className="text-gray-900">{filteredCows.length}</strong> of <strong className="text-gray-900">{cows.length}</strong> cattle
+            {categoryFilter !== 'All' && <span> • Category: <strong>{categoryFilter}</strong></span>}
+            {statusFilter !== 'All' && <span> • Status: <strong>{statusFilter}</strong></span>}
+          </span>
+          <span className="text-[11px] text-gray-400">
+            Sorted sequentially by ID ({sortOrder === 'asc' ? 'Ascending' : 'Descending'})
+          </span>
         </div>
       </div>
 
@@ -551,8 +735,56 @@ export default function AdminCows() {
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
+                <th 
+                  onClick={() => {
+                    if (sortBy === 'id') {
+                      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortBy('id');
+                      setSortOrder('asc');
+                    }
+                  }}
+                  className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  title="Click to toggle ID sorting (Sequential 001...)"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>ID</span>
+                    {sortBy === 'id' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-green-600" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-green-600" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => {
+                    if (sortBy === 'name') {
+                      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortBy('name');
+                      setSortOrder('asc');
+                    }
+                  }}
+                  className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  title="Click to toggle Name sorting"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Name</span>
+                    {sortBy === 'name' ? (
+                      sortOrder === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-green-600" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-green-600" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-40 hover:opacity-100" />
+                    )}
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status/Breed</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
